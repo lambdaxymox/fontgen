@@ -5,3 +5,4 @@ authors = ["Stallmanifold <stallmanifold@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+freetype-rs = "0.19.0"
