@@ -144,55 +144,102 @@ fn main() {
         gymin[i] = bbox.yMin;
     }
     //}
-    /*
-    for ( int y = 0; y < atlas_dimension_px; y++ ) {
-        for ( int x = 0; x < atlas_dimension_px; x++ ) {
+
+    //for ( int y = 0; y < atlas_dimension_px; y++ ) {
+    for y in 0..atlas_dimensions_px {
+        for x in 0..atlas_dimensions_px {
             // work out which grid slot[col][row] we are in e.g out of 16x16
-            int col = x / slot_glyph_size;
-            int row = y / slot_glyph_size;
-            int order = row * atlas_columns + col;
-            int glyph_index = order + 32;
+            let col = x / slot_glyph_size;
+            let row = y / slot_glyph_size;
+            let order = row * atlas_columns + col;
+            let glyph_index = order + 32;
 
             // an actual glyph bitmap exists for these indices
-            if ( glyph_index > 32 && glyph_index < 256 ) {
+            if (glyph_index > 32) && (glyph_index < 256) {
                 // pixel indices within padded glyph slot area
-                int x_loc = x % slot_glyph_size - padding_px / 2;
-                int y_loc = y % slot_glyph_size - padding_px / 2;
+                let x_loc = ((x % slot_glyph_size) as i32) - ((padding_px / 2) as i32);
+                let y_loc = ((y % slot_glyph_size) as i32) - ((padding_px / 2) as i32);
                 // outside of glyph dimensions use a transparent, black pixel (0,0,0,0)
-                if ( x_loc < 0 || y_loc < 0 || x_loc >= gwidth[glyph_index] ||
-                         y_loc >= grows[glyph_index] ) {
-                    atlas_buffer[atlas_buffer_index++] = 0;
-                    atlas_buffer[atlas_buffer_index++] = 0;
-                    atlas_buffer[atlas_buffer_index++] = 0;
-                    atlas_buffer[atlas_buffer_index++] = 0;
+                if x_loc < 0 || y_loc < 0 || x_loc >= gwidth[glyph_index] ||
+                         y_loc >= grows[glyph_index] {
+                    atlas_buffer[atlas_buffer_index] = 0;
+                    atlas_buffer_index += 1;
+                    atlas_buffer[atlas_buffer_index] = 0;
+                    atlas_buffer_index += 1;
+                    atlas_buffer[atlas_buffer_index] = 0;
+                    atlas_buffer_index += 1;
+                    atlas_buffer[atlas_buffer_index] = 0;
+                    atlas_buffer_index += 1;
                 } else {
                     // this is 1, but it's safer to put it in anyway
                     // int bytes_per_pixel = gwidth[glyph_index] / gpitch[glyph_index];
                     // int bytes_in_glyph = grows[glyph_index] * gpitch[glyph_index];
-                    int byte_order_in_glyph = y_loc * gwidth[glyph_index] + x_loc;
-                    unsigned char colour[4];
-                    colour[0] = colour[1] = colour[2] = colour[3] =
-                        glyph_buffer[glyph_index][byte_order_in_glyph];
+                    let byte_order_in_glyph = y_loc * gwidth[glyph_index] + x_loc;
+                    let mut colour = [0 as u8; 4];
+                    colour[0] = match &glyph_buffer[glyph_index] {
+                        GlyphSlot::Occupied(glyph_image) => {
+                            glyph_image.data[byte_order_in_glyph as usize]
+                        }
+                        GlyphSlot::Unoccupied => {
+                            panic!("Something went wrong!");
+                        }
+                    };
+                    colour[1] = colour[0];
+                    colour[2] = colour[0];
+                    colour[3] = colour[0];
                     // print byte from glyph
-                    atlas_buffer[atlas_buffer_index++] =
-                        glyph_buffer[glyph_index][byte_order_in_glyph];
-                    atlas_buffer[atlas_buffer_index++] =
-                        glyph_buffer[glyph_index][byte_order_in_glyph];
-                    atlas_buffer[atlas_buffer_index++] =
-                        glyph_buffer[glyph_index][byte_order_in_glyph];
-                    atlas_buffer[atlas_buffer_index++] =
-                        glyph_buffer[glyph_index][byte_order_in_glyph];
+                    atlas_buffer[atlas_buffer_index] = match &glyph_buffer[glyph_index] {
+                        GlyphSlot::Occupied(glyph_image) => {
+                            glyph_image.data[byte_order_in_glyph as usize]
+                        }
+                        GlyphSlot::Unoccupied => {
+                            panic!("Something went wrong!");
+                        }
+                    };
+                    atlas_buffer_index += 1;
+                    atlas_buffer[atlas_buffer_index] = match &glyph_buffer[glyph_index] {
+                        GlyphSlot::Occupied(glyph_image) => {
+                            glyph_image.data[byte_order_in_glyph as usize]
+                        }
+                        GlyphSlot::Unoccupied => {
+                            panic!("Something went wrong!");
+                        }
+                    };
+                    atlas_buffer_index += 1;
+                    atlas_buffer[atlas_buffer_index] = match &glyph_buffer[glyph_index] {
+                        GlyphSlot::Occupied(glyph_image) => {
+                            glyph_image.data[byte_order_in_glyph as usize]
+                        }
+                        GlyphSlot::Unoccupied => {
+                            panic!("Something went wrong!");
+                        }
+                    };
+                    atlas_buffer_index += 1;
+                    atlas_buffer[atlas_buffer_index] = match &glyph_buffer[glyph_index] {
+                        GlyphSlot::Occupied(glyph_image) => {
+                            glyph_image.data[byte_order_in_glyph as usize]
+                        }
+                        GlyphSlot::Unoccupied => {
+                            panic!("Something went wrong!");
+                        }
+                    };
+                    atlas_buffer_index += 1;
                 }
                 // write black in non-graphical ASCII boxes
             } else {
-                atlas_buffer[atlas_buffer_index++] = 0;
-                atlas_buffer[atlas_buffer_index++] = 0;
-                atlas_buffer[atlas_buffer_index++] = 0;
-                atlas_buffer[atlas_buffer_index++] = 0;
+                atlas_buffer[atlas_buffer_index] = 0;
+                atlas_buffer_index += 1;
+                atlas_buffer[atlas_buffer_index] = 0;
+                atlas_buffer_index += 1;
+                atlas_buffer[atlas_buffer_index] = 0;
+                atlas_buffer_index += 1;
+                atlas_buffer[atlas_buffer_index] = 0;
+                atlas_buffer_index += 1;
             } // endif
-        } // endfor
-    } // endfor
-
+        }
+    }
+    //} // endfor
+    /*
     // write meta-data file to go with atlas image
     FILE *fp = fopen( ATLAS_META_FILE, "w" );
     // comment, reminding me what each column is
