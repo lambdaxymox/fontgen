@@ -4,8 +4,10 @@ extern crate image;
 use freetype::Library;
 use std::collections::HashMap;
 use std::fs::File;
+use std::io;
 use std::io::Write;
 use std::mem;
+use std::path::Path;
 use std::process;
 
 
@@ -79,6 +81,30 @@ fn sample_typeface(atlas: freetype::face::Face) -> BitmapAtlas {
     unimplemented!();
 }
 */
+
+fn write_metadata(metadata: &HashMap<usize, GlyphMetadata>, path: &Path) -> io::Result<()> {
+    // write meta-data file to go with atlas image
+    let mut file = match File::create(path) {
+        Ok(val) => val,
+        Err(e) => return Err(e),
+    };
+
+    // comment, reminding me what each column is
+    writeln!(file, "// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset").unwrap();
+    // write an unique line for the 'space' character
+    writeln!(file, "32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
+    // write a line for each regular character
+    for i in 33..256 {
+        let glyph = &metadata[&i];
+        writeln!(
+            file, "{} {} {} {} {} {}",
+            glyph.code_point, glyph.x_min,
+            glyph.width, glyph.y_min, glyph.height, glyph.y_offset
+        ).unwrap();
+    }
+
+    Ok(())
+}
 
 fn main() {
     let ft = match Library::init() {
@@ -271,32 +297,14 @@ fn main() {
         metadata.insert(i, glyph_metadata_i);
     }
 
-    // Write out the metadata.
-    // write meta-data file to go with atlas image
-    let mut file = match File::create(ATLAS_META_FILE) {
-        Ok(val) => val,
-        Err(_) => {
+    let path = Path::new(ATLAS_META_FILE);
+    match write_metadata(&metadata, path) {
+        Err(e) => {
             eprintln!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
             panic!(); // process::exit(1);
         }
-    };
-    // comment, reminding me what each column is
-    writeln!(file, "// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset").unwrap();
-    // write an unique line for the 'space' character
-    writeln!(file, "32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
-    // write a line for each regular character
-    for i in 33..256 {
-        let glyph = &metadata[&i];
-        writeln!(file, "{} {} {} {} {} {}", glyph.code_point, glyph.x_min,
-            glyph.width, glyph.y_min, glyph.height, glyph.y_offset
-            /*
-                 (gwidth[i] + padding_px as i32) as f32 / slot_glyph_size as f32, y_min,
-            (grows[i] + padding_px as i32) as f32 / slot_glyph_size as f32,
-            -(padding_px as f32 - gymin[i] as f32) / slot_glyph_size as f32
-            */
-        ).unwrap();
+        _ => {}
     }
-    // End write out the metadata.
 
     // Write out the image.
     // use stb_image_write to write directly to png
