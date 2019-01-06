@@ -1,4 +1,5 @@
 extern crate freetype;
+extern crate image;
 
 use freetype::Library;
 use std::fs::File;
@@ -8,6 +9,7 @@ use std::process;
 
 
 const FONT_FILE: &str = "assets/FreeMono.ttf";
+const PNG_OUTPUT_IMAGE: &str = "atlas.png";
 const ATLAS_META_FILE: &str = "atlas.meta";
 
 
@@ -306,7 +308,13 @@ fn main() {
     }
     free( atlas_buffer );
     */
+    if image::save_buffer(
+        PNG_OUTPUT_IMAGE, &atlas_buffer, 
+        atlas_dimensions_px as u32, atlas_dimensions_px as u32, image::RGBA(8)).is_err() {
 
+        eprintln!("ERROR: Could not write file {}", PNG_OUTPUT_IMAGE);
+        panic!(); // process::exit(1);
+    }
     /*
     return 0;
     */
