@@ -220,7 +220,7 @@ fn main() {
     // write meta-data file to go with atlas image
     let mut file = match File::create(ATLAS_META_FILE) {
         Ok(val) => val,
-        Err(e) => {
+        Err(_) => {
             eprintln!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
             panic!(); // process::exit(1);
         }
