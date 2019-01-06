@@ -94,8 +94,7 @@ fn write_metadata(metadata: &HashMap<usize, GlyphMetadata>, path: &Path) -> io::
     // write an unique line for the 'space' character
     writeln!(file, "32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
     // write a line for each regular character
-    for i in 33..256 {
-        let glyph = &metadata[&i];
+    for glyph in metadata.values() {
         writeln!(
             file, "{} {} {} {} {} {}",
             glyph.code_point, glyph.x_min,
