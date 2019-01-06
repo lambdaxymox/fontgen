@@ -290,7 +290,6 @@ fn main() {
         ).unwrap();
     }
     /*
-    /*
     // free that buffer of glyph info
     for ( int i = 0; i < 256; i++ ) {
         if ( NULL != glyph_buffer[i] ) {
@@ -298,14 +297,19 @@ fn main() {
         }
     }
     */
-
+    
     // use stb_image_write to write directly to png
+    /*
     if ( !stbi_write_png( PNG_OUTPUT_IMAGE, atlas_dimension_px, atlas_dimension_px, 4,
                                                 atlas_buffer, 0 ) ) {
         fprintf( stderr, "ERROR: could not write file %s\n", PNG_OUTPUT_IMAGE );
     }
     free( atlas_buffer );
+    */
+
+    /*
     return 0;
     */
+
 }
 
