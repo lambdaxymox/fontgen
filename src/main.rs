@@ -16,6 +16,31 @@ const PNG_OUTPUT_IMAGE: &str = "atlas.png";
 const ATLAS_META_FILE: &str = "atlas.meta";
 
 
+
+#[derive(Copy, Clone)]
+struct AtlasSpec {
+    dimensions_px: usize,   // atlas size in pixels
+    columns: usize,         // number of glyphs across atlas
+    padding_px: usize,      // total space in glyph size for outlines
+    slot_glyph_size: usize, // glyph maximum size in pixels
+    glyph_px: usize,        // leave some padding for outlines
+}
+
+impl AtlasSpec {
+    fn new(
+        dimensions_px: usize, columns: usize,
+        padding_px: usize, slot_glyph_size: usize, glyph_px: usize) -> AtlasSpec {
+
+        AtlasSpec {
+            dimensions_px: dimensions_px,
+            columns: columns,
+            padding_px: padding_px,
+            slot_glyph_size: slot_glyph_size,
+            glyph_px: glyph_px,
+        }
+    }
+}
+
 #[derive(Clone)]
 struct GlyphImage {
     data: Vec<u8>,
@@ -60,7 +85,6 @@ impl GlyphMetadata {
         }
     }
 }
-
 
 struct BitmapAtlas {
     metadata: HashMap<usize, GlyphMetadata>,
@@ -209,30 +233,6 @@ fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
         metadata: metadata,
         glyphs: glyph_buffer,
         buffer: atlas_buffer,
-    }
-}
-
-#[derive(Copy, Clone)]
-struct AtlasSpec {
-    dimensions_px: usize,   // atlas size in pixels
-    columns: usize,         // number of glyphs across atlas
-    padding_px: usize,      // total space in glyph size for outlines
-    slot_glyph_size: usize, // glyph maximum size in pixels
-    glyph_px: usize,        // leave some padding for outlines
-}
-
-impl AtlasSpec {
-    fn new(
-        dimensions_px: usize, columns: usize,
-        padding_px: usize, slot_glyph_size: usize, glyph_px: usize) -> AtlasSpec {
-
-        AtlasSpec {
-            dimensions_px: dimensions_px,
-            columns: columns,
-            padding_px: padding_px,
-            slot_glyph_size: slot_glyph_size,
-            glyph_px: glyph_px,
-        }
     }
 }
 
