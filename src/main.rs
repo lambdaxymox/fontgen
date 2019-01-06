@@ -56,15 +56,15 @@ fn main() {
         Ok(val) => val,
         Err(_) => {
             eprintln!("Could not open font file.");
-            panic!(); // rocess::exit(1);
+            panic!(); // process::exit(1);
         }
     };
 
-    let mut atlas_dimensions_px = 2048;        // atlas size in pixels
-    let mut atlas_columns = 16;                // number of glyphs across atlas
-    let mut padding_px = 6;                    // total space in glyph size for outlines
-    let mut slot_glyph_size = 128;             // glyph maximum size in pixels
-    let mut atlas_glyph_px = 128 - padding_px; // leave some padding for outlines
+    let atlas_dimensions_px = 2048;        // atlas size in pixels
+    let atlas_columns = 16;                // number of glyphs across atlas
+    let padding_px = 6;                    // total space in glyph size for outlines
+    let slot_glyph_size = 128;             // glyph maximum size in pixels
+    let atlas_glyph_px = 128 - padding_px; // leave some padding for outlines
 
     // Next we can open a file stream to write our atlas image to
     let mut atlas_buffer = vec![
