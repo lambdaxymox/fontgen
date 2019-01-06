@@ -2,6 +2,7 @@ extern crate freetype;
 extern crate image;
 
 use freetype::Library;
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::Write;
 use std::mem;
@@ -42,8 +43,44 @@ fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
     GlyphImage::new(glyph_data)
 }
 
+struct GlyphMetadata {
+    code_point: usize,
+    x_min: f32,
+    width: f32,
+    height: f32,
+    y_min: f32,
+    y_offset: f32,
+}
+
+impl GlyphMetadata {
+    fn new(
+        code_point: usize,
+        width: f32, height: f32,
+        x_min: f32, y_min: f32, y_offset: f32) -> GlyphMetadata {
+
+        GlyphMetadata {
+            code_point: code_point,
+            width: width,
+            height: height,
+            x_min: x_min,
+            y_min: y_min,
+            y_offset: y_offset,
+        }
+    }
+}
+
+/*
+struct BitmapAtlas {
+    metadata: HashMap<usize, GlyphMetadata>,
+    buffer:
+}
+
+fn sample_typeface(atlas: freetype::face::Face) -> BitmapAtlas {
+    unimplemented!();
+}
+*/
+
 fn main() {
-    // Init the library
     let ft = match Library::init() {
         Ok(val) => val,
         Err(_) => {
@@ -51,7 +88,7 @@ fn main() {
             panic!(); // process::exit(1);
         }
     };
-    // Load a font face
+
     let face = match ft.new_face(FONT_FILE, 0) {
         Ok(val) => val,
         Err(_) => {
@@ -217,6 +254,24 @@ fn main() {
         }
     }
 
+    let mut metadata = HashMap::new();
+    for i in 33..256 {
+        let order = i - 32;
+        let col = order % atlas_columns;
+        let row = order % atlas_columns;
+
+        // Glyph metadata parameters.
+        let x_min = (col * slot_glyph_size) as f32 / atlas_dimensions_px as f32;
+        let y_min = (row * slot_glyph_size) as f32 / atlas_dimensions_px as f32;
+        let width = (gwidth[i] + padding_px as i32) as f32 / slot_glyph_size as f32;
+        let height = (grows[i] + padding_px as i32) as f32 / slot_glyph_size as f32;
+        let y_offset = -(padding_px as f32 - gymin[i] as f32) / slot_glyph_size as f32;
+
+        let glyph_metadata_i = GlyphMetadata::new(i, x_min, width, height, y_min, y_offset);
+        metadata.insert(i, glyph_metadata_i);
+    }
+
+    // Write out the metadata.
     // write meta-data file to go with atlas image
     let mut file = match File::create(ATLAS_META_FILE) {
         Ok(val) => val,
@@ -231,18 +286,19 @@ fn main() {
     writeln!(file, "32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
     // write a line for each regular character
     for i in 33..256 {
-        let order = i - 32;
-        let col = order % atlas_columns;
-        let row = order % atlas_columns;
-        let x_min = (col * slot_glyph_size) as f32 / atlas_dimensions_px as f32;
-        let y_min = (row * slot_glyph_size) as f32 / atlas_dimensions_px as f32;
-        writeln!(file, "{} {} {} {} {} {}", i, x_min, 
-            (gwidth[i] + padding_px as i32) as f32 / slot_glyph_size as f32, y_min,
+        let glyph = &metadata[&i];
+        writeln!(file, "{} {} {} {} {} {}", glyph.code_point, glyph.x_min,
+            glyph.width, glyph.y_min, glyph.height, glyph.y_offset
+            /*
+                 (gwidth[i] + padding_px as i32) as f32 / slot_glyph_size as f32, y_min,
             (grows[i] + padding_px as i32) as f32 / slot_glyph_size as f32,
             -(padding_px as f32 - gymin[i] as f32) / slot_glyph_size as f32
+            */
         ).unwrap();
     }
-    
+    // End write out the metadata.
+
+    // Write out the image.
     // use stb_image_write to write directly to png
     if image::save_buffer(
         PNG_OUTPUT_IMAGE, &atlas_buffer, 
@@ -251,5 +307,6 @@ fn main() {
         eprintln!("ERROR: Could not write file {}", PNG_OUTPUT_IMAGE);
         panic!(); // process::exit(1);
     }
+    // End write out the image.
 }
 
