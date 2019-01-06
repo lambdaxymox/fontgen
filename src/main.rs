@@ -60,9 +60,9 @@ fn main() {
         }
     };
 
-    let mut atlas_dimensions_px = 2048;       // atlas size in pixels
-    let mut atlas_columns = 16;               // number of glyphs across atlas
-    let mut padding_px = 6;                   // total space in glyph size for outlines
+    let mut atlas_dimensions_px = 2048;        // atlas size in pixels
+    let mut atlas_columns = 16;                // number of glyphs across atlas
+    let mut padding_px = 6;                    // total space in glyph size for outlines
     let mut slot_glyph_size = 128;             // glyph maximum size in pixels
     let mut atlas_glyph_px = 128 - padding_px; // leave some padding for outlines
 
@@ -73,14 +73,13 @@ fn main() {
     let mut atlas_buffer_index = 0;
 
     // I'll tell FreeType the maximum size of each glyph in pixels
-    let mut grows = vec![0 as i32; 256];  // glyph height in pixels
-    let mut gwidth = vec![0 as i32; 256]; // glyph width in pixels
-    let mut gpitch = vec![0 as i32; 256]; // bytes per row of pixels
-    let mut gymin = vec![0 as i64; 256];  // offset for letters that dip below baseline like g and y
-    let mut glyph_buffer = vec![GlyphSlot::Unoccupied; 256];        // stored glyph images
+    let mut grows = vec![0 as i32; 256];                     // glyph height in pixels
+    let mut gwidth = vec![0 as i32; 256];                    // glyph width in pixels
+    let mut gpitch = vec![0 as i32; 256];                    // bytes per row of pixels
+    let mut gymin = vec![0 as i64; 256];                     // offset for letters that dip below baseline like g and y
+    let mut glyph_buffer = vec![GlyphSlot::Unoccupied; 256]; // stored glyph images
     
     // set height in pixels width 0 height 48 (48x48)
-    //FT_Set_Pixel_Sizes( face, 0, atlas_glyph_px );
     match face.set_pixel_sizes(0, atlas_glyph_px) {
         Ok(_) => {}
         Err(_) => {
@@ -89,21 +88,13 @@ fn main() {
         }
     };
 
-    //for ( int i = 33; i < 256; i++ ) {
     for i in 33..256 {
-        /*
-        if ( FT_Load_Char( face, i, FT_LOAD_RENDER ) ) {
-            fprintf( stderr, "Could not load character %i\n", i );
-            return 1;
-        }
-        */
         if face.load_char(i, freetype::face::LoadFlag::RENDER).is_err() {
             eprintln!("Could not load character {:x}", i);
             panic!(); // process::exit(1);
         }
 
         // draw glyph image anti-aliased
-        //FT_Render_Glyph( face->glyph, FT_RENDER_MODE_NORMAL );
         let glyph_handle = face.glyph();
         if glyph_handle.render_glyph(freetype::render_mode::RenderMode::Normal).is_err() {
             eprintln!("Could not render character {:x}", i);
@@ -117,19 +108,8 @@ fn main() {
 
         // copy glyph data into memory because it seems to be overwritten/lost later
         glyph_buffer[i] = GlyphSlot::Occupied(create_glyph_image(glyph_handle));
-        /*
-        memcpy( glyph_buffer[i], face->glyph->bitmap.buffer,
-                        face->glyph->bitmap.rows * face->glyph->bitmap.pitch );
-        */
 
         // get y-offset to place glyphs on baseline. this is in the bounding box
-        /*
-        FT_Glyph glyph; // a handle to the glyph image
-        if ( FT_Get_Glyph( face->glyph, &glyph ) ) {
-            fprintf( stderr, "Could not get glyph handle %i\n", i );
-            return 1;
-        }
-        */
         let glyph = match glyph_handle.get_glyph() {
             Ok(val) => val,
             Err(_) => {
@@ -140,17 +120,10 @@ fn main() {
 
 
         // get bbox. "truncated" mode means get dimensions in pixels
-        /*
-        FT_BBox bbox;
-        FT_Glyph_Get_CBox( glyph, FT_GLYPH_BBOX_TRUNCATE, &bbox );
-        gymin[i] = bbox.yMin;
-        */
         let bbox = glyph.get_cbox(freetype::ffi::FT_GLYPH_BBOX_TRUNCATE);
         gymin[i] = bbox.yMin;
     }
-    //}
 
-    //for ( int y = 0; y < atlas_dimension_px; y++ ) {
     for y in 0..atlas_dimensions_px {
         for x in 0..atlas_dimensions_px {
             // work out which grid slot[col][row] we are in e.g out of 16x16
@@ -240,10 +213,9 @@ fn main() {
                 atlas_buffer_index += 1;
                 atlas_buffer[atlas_buffer_index] = 0;
                 atlas_buffer_index += 1;
-            } // endif
+            }
         }
     }
-    //} // endfor
 
     // write meta-data file to go with atlas image
     let mut file = match File::create(ATLAS_META_FILE) {
@@ -254,31 +226,10 @@ fn main() {
         }
     };
     // comment, reminding me what each column is
-    /*
-    file.write_all(
-        b"// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset\n" 
-    ).unwrap();
-    */
     writeln!(file, "// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset").unwrap();
     // write an unique line for the 'space' character
-    //fprintf( fp, "32 0 %f 0 %f 0\n", 0.5f, 1.0f );
-    //file.write_all("32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
     writeln!(file, "32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
     // write a line for each regular character
-    /*
-    for ( int i = 33; i < 256; i++ ) {
-        int order = i - 32;
-        int col = order % atlas_columns;
-        int row = order / atlas_columns;
-        float x_min = (float)( col * slot_glyph_size ) / (float)atlas_dimension_px;
-        float y_min = (float)( row * slot_glyph_size ) / (float)atlas_dimension_px;
-        fprintf( fp, "%i %f %f %f %f %f\n", i, x_min,
-                         (float)( gwidth[i] + padding_px ) / (float)slot_glyph_size, y_min,
-                         ( grows[i] + padding_px ) / (float)slot_glyph_size,
-                         -( (float)padding_px - (float)gymin[i] ) / (float)slot_glyph_size );
-    }
-    fclose( fp );
-    */
     for i in 33..256 {
         let order = i - 32;
         let col = order % atlas_columns;
@@ -291,23 +242,8 @@ fn main() {
             -(padding_px as f32 - gymin[i] as f32) / slot_glyph_size as f32
         ).unwrap();
     }
-    /*
-    // free that buffer of glyph info
-    for ( int i = 0; i < 256; i++ ) {
-        if ( NULL != glyph_buffer[i] ) {
-            free( glyph_buffer[i] );
-        }
-    }
-    */
     
     // use stb_image_write to write directly to png
-    /*
-    if ( !stbi_write_png( PNG_OUTPUT_IMAGE, atlas_dimension_px, atlas_dimension_px, 4,
-                                                atlas_buffer, 0 ) ) {
-        fprintf( stderr, "ERROR: could not write file %s\n", PNG_OUTPUT_IMAGE );
-    }
-    free( atlas_buffer );
-    */
     if image::save_buffer(
         PNG_OUTPUT_IMAGE, &atlas_buffer, 
         atlas_dimensions_px as u32, atlas_dimensions_px as u32, image::RGBA(8)).is_err() {
@@ -315,9 +251,5 @@ fn main() {
         eprintln!("ERROR: Could not write file {}", PNG_OUTPUT_IMAGE);
         panic!(); // process::exit(1);
     }
-    /*
-    return 0;
-    */
-
 }
 
