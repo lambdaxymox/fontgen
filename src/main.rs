@@ -292,7 +292,7 @@ fn main() {
         let height = (grows[i] + padding_px as i32) as f32 / slot_glyph_size as f32;
         let y_offset = -(padding_px as f32 - gymin[i] as f32) / slot_glyph_size as f32;
 
-        let glyph_metadata_i = GlyphMetadata::new(i, x_min, width, height, y_min, y_offset);
+        let glyph_metadata_i = GlyphMetadata::new(i, width, height, x_min, y_min, y_offset);
         metadata.insert(i, glyph_metadata_i);
     }
 
