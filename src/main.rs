@@ -61,16 +61,15 @@ impl GlyphMetadata {
     }
 }
 
-/*
+
 struct BitmapAtlas {
     metadata: HashMap<usize, GlyphMetadata>,
-    buffer:
+    glyphs: HashMap<usize, GlyphImage>,
 }
 
 fn sample_typeface(atlas: freetype::face::Face) -> BitmapAtlas {
     unimplemented!();
 }
-*/
 
 fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
     let bitmap = glyph.bitmap();
@@ -120,9 +119,9 @@ fn main() {
         }
     };
 
-    let atlas_dimensions_px = 1024;        // atlas size in pixels
-    let atlas_columns = 16;                // number of glyphs across atlas
-    let padding_px = 6;                    // total space in glyph size for outlines
+    let atlas_dimensions_px = 1024;       // atlas size in pixels
+    let atlas_columns = 16;               // number of glyphs across atlas
+    let padding_px = 6;                   // total space in glyph size for outlines
     let slot_glyph_size = 64;             // glyph maximum size in pixels
     let atlas_glyph_px = 64 - padding_px; // leave some padding for outlines
 
@@ -132,6 +131,9 @@ fn main() {
     ];
     let mut atlas_buffer_index = 0;
 
+    // *******************************************************************************
+    // BEGIN BITMAP FONT ATLAS
+    //
     // Tell FreeType the maximum size of each glyph, in pixels.
     let mut grows = vec![0 as i32; 256];                     // glyph height in pixels
     let mut gwidth = vec![0 as i32; 256];                    // glyph width in pixels
@@ -184,6 +186,31 @@ fn main() {
         gymin[i] = bbox.yMin;
     }
 
+    let mut metadata = HashMap::new();
+    let glyph_metadata_space = GlyphMetadata::new(32, 0.0, 0.5, 0.0, 1.0, 0.0);
+    metadata.insert(32, glyph_metadata_space);
+    for i in 33..256 {
+        let order = i - 32;
+        let col = order % atlas_columns;
+        let row = order % atlas_columns;
+
+        // Glyph metadata parameters.
+        let x_min = (col * slot_glyph_size) as f32 / atlas_dimensions_px as f32;
+        let y_min = (row * slot_glyph_size) as f32 / atlas_dimensions_px as f32;
+        let width = (gwidth[i] + padding_px as i32) as f32 / slot_glyph_size as f32;
+        let height = (grows[i] + padding_px as i32) as f32 / slot_glyph_size as f32;
+        let y_offset = -(padding_px as f32 - gymin[i] as f32) / slot_glyph_size as f32;
+
+        let glyph_metadata_i = GlyphMetadata::new(i, width, height, x_min, y_min, y_offset);
+        metadata.insert(i, glyph_metadata_i);
+    }
+    //
+    // END BITMAP FONT ATLAS
+    // *****************************************************************************
+
+    // *****************************************************************************
+    // FONT SHEET IMAGE
+    //
     for y in 0..atlas_dimensions_px {
         for x in 0..atlas_dimensions_px {
             // work out which grid slot[col][row] we are in e.g out of 16x16
@@ -276,25 +303,9 @@ fn main() {
             }
         }
     }
-
-    let mut metadata = HashMap::new();
-    let glyph_metadata_space = GlyphMetadata::new(32, 0.0, 0.5, 0.0, 1.0, 0.0);
-    metadata.insert(32, glyph_metadata_space);
-    for i in 33..256 {
-        let order = i - 32;
-        let col = order % atlas_columns;
-        let row = order % atlas_columns;
-
-        // Glyph metadata parameters.
-        let x_min = (col * slot_glyph_size) as f32 / atlas_dimensions_px as f32;
-        let y_min = (row * slot_glyph_size) as f32 / atlas_dimensions_px as f32;
-        let width = (gwidth[i] + padding_px as i32) as f32 / slot_glyph_size as f32;
-        let height = (grows[i] + padding_px as i32) as f32 / slot_glyph_size as f32;
-        let y_offset = -(padding_px as f32 - gymin[i] as f32) / slot_glyph_size as f32;
-
-        let glyph_metadata_i = GlyphMetadata::new(i, width, height, x_min, y_min, y_offset);
-        metadata.insert(i, glyph_metadata_i);
-    }
+    //
+    // END FONT SHEET
+    // *************************************************************************
 
     let path = Path::new(ATLAS_META_FILE);
     match write_metadata(&metadata, path) {
