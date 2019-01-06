@@ -92,7 +92,7 @@ fn write_metadata(metadata: &HashMap<usize, GlyphMetadata>, path: &Path) -> io::
     // comment, reminding me what each column is
     writeln!(file, "// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset").unwrap();
     // write an unique line for the 'space' character
-    writeln!(file, "32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
+    // writeln!(file, "32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
     // write a line for each regular character
     for glyph in metadata.values() {
         writeln!(
@@ -280,6 +280,8 @@ fn main() {
     }
 
     let mut metadata = HashMap::new();
+    let glyph_metadata_space = GlyphMetadata::new(32, 0.0, 0.5, 0.0, 1.0, 0.0);
+    metadata.insert(32, glyph_metadata_space);
     for i in 33..256 {
         let order = i - 32;
         let col = order % atlas_columns;
