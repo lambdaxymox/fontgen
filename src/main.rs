@@ -91,8 +91,6 @@ fn write_metadata(metadata: &HashMap<usize, GlyphMetadata>, path: &Path) -> io::
 
     // comment, reminding me what each column is
     writeln!(file, "// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset").unwrap();
-    // write an unique line for the 'space' character
-    // writeln!(file, "32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
     // write a line for each regular character
     for glyph in metadata.values() {
         writeln!(
@@ -300,7 +298,7 @@ fn main() {
 
     let path = Path::new(ATLAS_META_FILE);
     match write_metadata(&metadata, path) {
-        Err(e) => {
+        Err(_) => {
             eprintln!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
             panic!(); // process::exit(1);
         }
