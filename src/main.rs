@@ -1,11 +1,14 @@
 extern crate freetype;
 
 use freetype::Library;
+use std::fs::File;
+use std::io::Write;
 use std::mem;
 use std::process;
 
 
 const FONT_FILE: &str = "assets/FreeMono.ttf";
+const ATLAS_META_FILE: &str = "atlas.meta";
 
 
 #[derive(Clone)]
@@ -239,15 +242,28 @@ fn main() {
         }
     }
     //} // endfor
-    /*
+
     // write meta-data file to go with atlas image
-    FILE *fp = fopen( ATLAS_META_FILE, "w" );
+    let mut file = match File::create(ATLAS_META_FILE) {
+        Ok(val) => val,
+        Err(e) => {
+            eprintln!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
+            panic!(); // process::exit(1);
+        }
+    };
     // comment, reminding me what each column is
-    fprintf( fp, "// ascii_code prop_xMin prop_width prop_yMin prop_height "
-                             "prop_y_offset\n" );
+    /*
+    file.write_all(
+        b"// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset\n" 
+    ).unwrap();
+    */
+    writeln!(file, "// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset").unwrap();
     // write an unique line for the 'space' character
-    fprintf( fp, "32 0 %f 0 %f 0\n", 0.5f, 1.0f );
+    //fprintf( fp, "32 0 %f 0 %f 0\n", 0.5f, 1.0f );
+    //file.write_all("32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
+    writeln!(file, "32 0 {} 0 {} 0\n", 0.5 as f32, 1.0 as f32).unwrap();
     // write a line for each regular character
+    /*
     for ( int i = 33; i < 256; i++ ) {
         int order = i - 32;
         int col = order % atlas_columns;
@@ -260,7 +276,20 @@ fn main() {
                          -( (float)padding_px - (float)gymin[i] ) / (float)slot_glyph_size );
     }
     fclose( fp );
-
+    */
+    for i in 33..256 {
+        let order = i - 32;
+        let col = order % atlas_columns;
+        let row = order % atlas_columns;
+        let x_min = (col * slot_glyph_size) as f32 / atlas_dimensions_px as f32;
+        let y_min = (row * slot_glyph_size) as f32 / atlas_dimensions_px as f32;
+        writeln!(file, "{} {} {} {} {} {}", i, x_min, 
+            (gwidth[i] + padding_px as i32) as f32 / slot_glyph_size as f32, y_min,
+            (grows[i] + padding_px as i32) as f32 / slot_glyph_size as f32,
+            -(padding_px as f32 - gymin[i] as f32) / slot_glyph_size as f32
+        ).unwrap();
+    }
+    /*
     /*
     // free that buffer of glyph info
     for ( int i = 0; i < 256; i++ ) {
