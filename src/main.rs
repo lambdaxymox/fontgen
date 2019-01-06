@@ -54,12 +54,6 @@ impl GlyphImage {
     }
 }
 
-#[derive(Clone)]
-enum GlyphSlot {
-    Occupied(GlyphImage),
-    Unoccupied,
-}
-
 struct GlyphMetadata {
     code_point: usize,
     x_min: f32,
