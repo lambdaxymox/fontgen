@@ -120,11 +120,11 @@ fn main() {
         }
     };
 
-    let atlas_dimensions_px = 2048;        // atlas size in pixels
+    let atlas_dimensions_px = 1024;        // atlas size in pixels
     let atlas_columns = 16;                // number of glyphs across atlas
     let padding_px = 6;                    // total space in glyph size for outlines
-    let slot_glyph_size = 128;             // glyph maximum size in pixels
-    let atlas_glyph_px = 128 - padding_px; // leave some padding for outlines
+    let slot_glyph_size = 64;             // glyph maximum size in pixels
+    let atlas_glyph_px = 64 - padding_px; // leave some padding for outlines
 
     // Next we can open a file stream to write our atlas image to
     let mut atlas_buffer = vec![
@@ -132,7 +132,7 @@ fn main() {
     ];
     let mut atlas_buffer_index = 0;
 
-    // I'll tell FreeType the maximum size of each glyph in pixels
+    // Tell FreeType the maximum size of each glyph, in pixels.
     let mut grows = vec![0 as i32; 256];                     // glyph height in pixels
     let mut gwidth = vec![0 as i32; 256];                    // glyph width in pixels
     let mut gpitch = vec![0 as i32; 256];                    // bytes per row of pixels
