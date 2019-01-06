@@ -35,16 +35,6 @@ enum GlyphSlot {
     Unoccupied,
 }
 
-fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
-    let bitmap = glyph.bitmap();
-    let rows = bitmap.rows() as usize;
-    let pitch = bitmap.pitch() as usize;
-    let mut glyph_data = vec![0 as u8; rows * pitch];
-    glyph_data.clone_from_slice(bitmap.buffer());
-
-    GlyphImage::new(glyph_data)
-}
-
 struct GlyphMetadata {
     code_point: usize,
     x_min: f32,
@@ -81,6 +71,16 @@ fn sample_typeface(atlas: freetype::face::Face) -> BitmapAtlas {
     unimplemented!();
 }
 */
+
+fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
+    let bitmap = glyph.bitmap();
+    let rows = bitmap.rows() as usize;
+    let pitch = bitmap.pitch() as usize;
+    let mut glyph_data = vec![0 as u8; rows * pitch];
+    glyph_data.clone_from_slice(bitmap.buffer());
+
+    GlyphImage::new(glyph_data)
+}
 
 fn write_metadata(metadata: &HashMap<usize, GlyphMetadata>, path: &Path) -> io::Result<()> {
     // write meta-data file to go with atlas image
