@@ -3,6 +3,8 @@ name = "fontgen"
 version = "0.1.0"
 authors = ["Stallmanifold <stallmanifold@gmail.com>"]
 edition = "2018"
+description = "A shell utility for converting a vector (i.e. ttf or otf) to a bitmapped font sheet."
+keywords = ["games", "game development", "fonts"]
 
 [dependencies]
 freetype-rs = "0.19.0"
