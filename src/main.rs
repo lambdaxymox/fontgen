@@ -338,8 +338,6 @@ fn main() {
     // ********************************************************************************
     // END BITMAP FONT ATLAS
     // ********************************************************************************
-
-    let path = Path::new(ATLAS_META_FILE);
     match write_metadata(&atlas.metadata, ATLAS_META_FILE) {
         Err(_) => {
             eprintln!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
@@ -350,7 +348,6 @@ fn main() {
 
     // Write out the image.
     // use stb_image_write to write directly to png
-    let path = Path::new(PNG_OUTPUT_IMAGE);
     if write_atlas_buffer(&atlas, PNG_OUTPUT_IMAGE).is_err() {
         eprintln!("ERROR: Could not write file {}", PNG_OUTPUT_IMAGE);
         panic!(); // process::exit(1);
