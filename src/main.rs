@@ -277,7 +277,7 @@ fn create_bitmap_atlas(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtl
     }
 }
 
-fn write_metadata(metadata: &HashMap<usize, GlyphMetadata>, path: &Path) -> io::Result<()> {
+fn write_metadata<P: AsRef<Path>>(metadata: &HashMap<usize, GlyphMetadata>, path: P) -> io::Result<()> {
     // write meta-data file to go with atlas image
     let mut file = match File::create(path) {
         Ok(val) => val,
@@ -298,7 +298,7 @@ fn write_metadata(metadata: &HashMap<usize, GlyphMetadata>, path: &Path) -> io::
     Ok(())
 }
 
-fn write_atlas_buffer(atlas: &BitmapAtlas, path: &Path) -> io::Result<()> {
+fn write_atlas_buffer<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()> {
     image::save_buffer(
         path, &atlas.buffer,
         atlas.dimensions_px as u32, atlas.dimensions_px as u32, image::RGBA(8)
@@ -340,7 +340,7 @@ fn main() {
     // ********************************************************************************
 
     let path = Path::new(ATLAS_META_FILE);
-    match write_metadata(&atlas.metadata, path) {
+    match write_metadata(&atlas.metadata, ATLAS_META_FILE) {
         Err(_) => {
             eprintln!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
             panic!(); // process::exit(1);
@@ -351,7 +351,7 @@ fn main() {
     // Write out the image.
     // use stb_image_write to write directly to png
     let path = Path::new(PNG_OUTPUT_IMAGE);
-    if write_atlas_buffer(&atlas, path).is_err() {
+    if write_atlas_buffer(&atlas, PNG_OUTPUT_IMAGE).is_err() {
         eprintln!("ERROR: Could not write file {}", PNG_OUTPUT_IMAGE);
         panic!(); // process::exit(1);
     }
