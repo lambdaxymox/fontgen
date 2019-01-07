@@ -308,13 +308,12 @@ fn write_atlas_buffer<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Resul
     )
 }
 
-fn run_app() -> Result<(), ()> {
+fn run_app() -> Result<(), String> {
     let ft = Library::init().expect("Failed to initialize FreeType library.");
     let face = match ft.new_face(FONT_FILE, 0) {
         Ok(val) => val,
         Err(_) => {
-            eprintln!("Could not open font file.");
-            panic!(); // process::exit(1);
+            return Err(format!("Could not open font file: {}.", FONT_FILE));
         }
     };
 
@@ -330,11 +329,15 @@ fn run_app() -> Result<(), ()> {
     let atlas = create_bitmap_atlas(face, atlas_spec);
 
     if write_metadata(&atlas, ATLAS_META_FILE).is_err() {
-        panic!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
+        return Err(format!(
+            "Could not create atlas metadata file: {}.", ATLAS_META_FILE
+        ));
     }
 
     if write_atlas_buffer(&atlas, PNG_OUTPUT_IMAGE).is_err() {
-        panic!("Failed to create atlas font sheet file {}", PNG_OUTPUT_IMAGE);
+        return Err(format!(
+            "Could not create atlas font sheet file: {}.", PNG_OUTPUT_IMAGE
+        ));
     }
 
     Ok(())
@@ -342,8 +345,11 @@ fn run_app() -> Result<(), ()> {
 
 fn main() {
     process::exit(match run_app() {
-        Ok(_) => 0,
+        Ok(_) => {
+            0
+        },
         Err(e) => {
+            eprintln!("{}", e);
             1
         }
     });
