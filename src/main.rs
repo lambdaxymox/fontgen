@@ -3,6 +3,8 @@ extern crate image;
 
 use freetype::Library;
 use std::collections::HashMap;
+use std::error;
+use std::fmt;
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -108,13 +110,51 @@ fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
 }
 
 
-#[derive(Debug)]
+#[derive(Copy, Clone, Debug)]
 enum SampleTypefaceError {
-    SetPixelSize(usize),
+    SetPixelSize(usize, usize),
     LoadCharacter(usize),
     RenderCharacter(usize),
     GetGlyphImage(usize),
 }
+
+impl fmt::Display for SampleTypefaceError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            SampleTypefaceError::SetPixelSize(code_point, pixels) => {
+                write!(
+                    f, "The FreeType library failed to set the size of glyph {} to {} pixels.",
+                    code_point, pixels
+                )
+            }
+            SampleTypefaceError::LoadCharacter(code_point) => {
+                write!(
+                    f, "The FreeType library failed to load the character with code point {}.",
+                    code_point
+                )
+            }
+            SampleTypefaceError::RenderCharacter(code_point) => {
+                write!(
+                    f, "The FreeType library could not render the code point {}.",
+                    code_point
+                )
+            }
+            SampleTypefaceError::GetGlyphImage(code_point) => {
+                write!(
+                    f, "The FreeType library extract the glyph image for the code point {}.",
+                    code_point
+                )
+            }
+        }
+    }
+}
+
+impl error::Error for SampleTypefaceError {
+    fn source(&self) -> Option<&(dyn error::Error + 'static)> {
+        None
+    }
+}
+
 
 fn sample_typeface(
     face: freetype::face::Face, spec: AtlasSpec) -> Result<GlyphTable, SampleTypefaceError> {
@@ -128,7 +168,7 @@ fn sample_typeface(
 
     // set height in pixels width 0 height 48 (48x48)
     face.set_pixel_sizes(0, spec.glyph_px as u32).map_err(|e| {
-        SampleTypefaceError::SetPixelSize(spec.glyph_px)
+        SampleTypefaceError::SetPixelSize(0, spec.glyph_px)
     })?;
 
     for i in 33..256 {
@@ -264,12 +304,17 @@ fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
     atlas_buffer
 }
 
-fn create_bitmap_atlas(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
-    let glyph_tab = sample_typeface(face, spec).unwrap();
+fn create_bitmap_atlas(
+    face: freetype::face::Face, spec: AtlasSpec) -> Result<BitmapAtlas, SampleTypefaceError> {
+
+    let glyph_tab = match sample_typeface(face, spec) {
+        Ok(val) => val,
+        Err(e) => return Err(e),
+    };
     let metadata = create_bitmap_metadata(&glyph_tab, spec);
     let atlas_buffer = create_bitmap_buffer(&glyph_tab, spec);
 
-    BitmapAtlas {
+    Ok(BitmapAtlas {
         dimensions_px: spec.dimensions_px,
         columns: spec.columns,
         padding_px: spec.padding_px,
@@ -277,7 +322,7 @@ fn create_bitmap_atlas(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtl
         glyph_px: spec.glyph_px,
         metadata: metadata,
         buffer: atlas_buffer,
-    }
+    })
 }
 
 fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()> {
@@ -326,7 +371,12 @@ fn run_app() -> Result<(), String> {
     let atlas_spec = AtlasSpec::new(
         atlas_dimensions_px, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
     );
-    let atlas = create_bitmap_atlas(face, atlas_spec);
+    let atlas = match create_bitmap_atlas(face, atlas_spec) {
+        Ok(val) => val,
+        Err(e) => {
+            return Err(format!("Could create bitmap font. Got error: {}", e));
+        }
+    };
 
     if write_metadata(&atlas, ATLAS_META_FILE).is_err() {
         return Err(format!(
