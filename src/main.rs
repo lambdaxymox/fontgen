@@ -349,7 +349,7 @@ fn main() {
             0
         },
         Err(e) => {
-            eprintln!("{}", e);
+            eprintln!("{:?}", e);
             1
         }
     });
