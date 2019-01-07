@@ -175,7 +175,7 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
     let mut metadata = HashMap::new();
     let glyph_metadata_space = GlyphMetadata::new(32, 0.0, 0.5, 0.0, 1.0, 0.0);
     metadata.insert(32, glyph_metadata_space);
-    for i in 33..256 {
+    for i in glyph_tab.buffer.keys() {
         let order = i - 32;
         let col = order % spec.columns;
         let row = order % spec.columns;
@@ -183,12 +183,12 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
         // Glyph metadata parameters.
         let x_min = (col * spec.slot_glyph_size) as f32 / spec.dimensions_px as f32;
         let y_min = (row * spec.slot_glyph_size) as f32 / spec.dimensions_px as f32;
-        let width = (glyph_tab.width[i] + spec.padding_px as i32) as f32 / spec.slot_glyph_size as f32;
-        let height = (glyph_tab.rows[i] + spec.padding_px as i32) as f32 / spec.slot_glyph_size as f32;
-        let y_offset = -(spec.padding_px as f32 - glyph_tab.y_min[i] as f32) / spec.slot_glyph_size as f32;
+        let width = (glyph_tab.width[*i] + spec.padding_px as i32) as f32 / spec.slot_glyph_size as f32;
+        let height = (glyph_tab.rows[*i] + spec.padding_px as i32) as f32 / spec.slot_glyph_size as f32;
+        let y_offset = -(spec.padding_px as f32 - glyph_tab.y_min[*i] as f32) / spec.slot_glyph_size as f32;
 
-        let glyph_metadata_i = GlyphMetadata::new(i, width, height, x_min, y_min, y_offset);
-        metadata.insert(i, glyph_metadata_i);
+        let glyph_metadata_i = GlyphMetadata::new(*i, width, height, x_min, y_min, y_offset);
+        metadata.insert(*i, glyph_metadata_i);
     }
 
     metadata
@@ -309,8 +309,7 @@ fn main() {
     let ft = match Library::init() {
         Ok(val) => val,
         Err(_) => {
-            eprintln!("Failed to initialize FreeType library.");
-            panic!(); // process::exit(1);
+            panic!("Failed to initialize FreeType library.");
         }
     };
 
