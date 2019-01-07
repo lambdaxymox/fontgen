@@ -81,17 +81,39 @@ impl GlyphMetadata {
 }
 
 struct BitmapAtlas {
+    dimensions_px: usize,
+    columns: usize,
+    padding_px: usize,
+    slot_glyph_size: usize,
+    glyph_px: usize,
     metadata: HashMap<usize, GlyphMetadata>,
-    glyphs: HashMap<usize, GlyphImage>,
     buffer: Vec<u8>,
 }
 
-fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
+struct GlyphTable {
+    rows: Vec<i32>,
+    width: Vec<i32>,
+    pitch: Vec<i32>,
+    y_min: Vec<i64>,
+    buffer: HashMap<usize, GlyphImage>,
+}
+
+fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
+    let bitmap = glyph.bitmap();
+    let rows = bitmap.rows() as usize;
+    let pitch = bitmap.pitch() as usize;
+    let mut glyph_data = vec![0 as u8; rows * pitch];
+    glyph_data.clone_from_slice(bitmap.buffer());
+
+    GlyphImage::new(glyph_data)
+}
+
+fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> GlyphTable {
     // Tell FreeType the maximum size of each glyph, in pixels.
-    let mut grows = vec![0 as i32; 256];   // glyph height in pixels
-    let mut gwidth = vec![0 as i32; 256];  // glyph width in pixels
-    let mut gpitch = vec![0 as i32; 256];  // bytes per row of pixels
-    let mut gymin = vec![0 as i64; 256];   // offset for letters that dip below baseline like g and y
+    let mut glyph_rows = vec![0 as i32; 256];   // glyph height in pixels
+    let mut glyph_width = vec![0 as i32; 256];  // glyph width in pixels
+    let mut glyph_pitch = vec![0 as i32; 256];  // bytes per row of pixels
+    let mut glyph_ymin = vec![0 as i64; 256];   // offset for letters that dip below baseline like g and y
     let mut glyph_buffer = HashMap::new(); // stored glyph images
 
     // set height in pixels width 0 height 48 (48x48)
@@ -117,9 +139,9 @@ fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
         }
 
         // get dimensions of bitmap
-        grows[i] = glyph_handle.bitmap().rows();
-        gwidth[i] = glyph_handle.bitmap().width();
-        gpitch[i] = glyph_handle.bitmap().pitch();
+        glyph_rows[i] = glyph_handle.bitmap().rows();
+        glyph_width[i] = glyph_handle.bitmap().width();
+        glyph_pitch[i] = glyph_handle.bitmap().pitch();
 
         // copy glyph data into memory because it seems to be overwritten/lost later
         let glyph_image_i = create_glyph_image(glyph_handle);
@@ -137,9 +159,19 @@ fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
 
         // get bbox. "truncated" mode means get dimensions in pixels
         let bbox = glyph.get_cbox(freetype::ffi::FT_GLYPH_BBOX_TRUNCATE);
-        gymin[i] = bbox.yMin;
+        glyph_ymin[i] = bbox.yMin;
     }
 
+    GlyphTable {
+        rows: glyph_rows,
+        width: glyph_width,
+        pitch: glyph_pitch,
+        y_min: glyph_ymin,
+        buffer: glyph_buffer,
+    }
+}
+
+fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<usize, GlyphMetadata> {
     let mut metadata = HashMap::new();
     let glyph_metadata_space = GlyphMetadata::new(32, 0.0, 0.5, 0.0, 1.0, 0.0);
     metadata.insert(32, glyph_metadata_space);
@@ -151,20 +183,23 @@ fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
         // Glyph metadata parameters.
         let x_min = (col * spec.slot_glyph_size) as f32 / spec.dimensions_px as f32;
         let y_min = (row * spec.slot_glyph_size) as f32 / spec.dimensions_px as f32;
-        let width = (gwidth[i] + spec.padding_px as i32) as f32 / spec.slot_glyph_size as f32;
-        let height = (grows[i] + spec.padding_px as i32) as f32 / spec.slot_glyph_size as f32;
-        let y_offset = -(spec.padding_px as f32 - gymin[i] as f32) / spec.slot_glyph_size as f32;
+        let width = (glyph_tab.width[i] + spec.padding_px as i32) as f32 / spec.slot_glyph_size as f32;
+        let height = (glyph_tab.rows[i] + spec.padding_px as i32) as f32 / spec.slot_glyph_size as f32;
+        let y_offset = -(spec.padding_px as f32 - glyph_tab.y_min[i] as f32) / spec.slot_glyph_size as f32;
 
         let glyph_metadata_i = GlyphMetadata::new(i, width, height, x_min, y_min, y_offset);
         metadata.insert(i, glyph_metadata_i);
     }
 
+    metadata
+}
+
+fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
     // Next we can open a file stream to write our atlas image to
     let mut atlas_buffer = vec![
         0 as u8; spec.dimensions_px * spec.dimensions_px * 4 * mem::size_of::<u8>()
     ];
     let mut atlas_buffer_index = 0;
-
     for y in 0..spec.dimensions_px {
         for x in 0..spec.dimensions_px {
             // work out which grid slot[col][row] we are in e.g out of 16x16
@@ -179,8 +214,8 @@ fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
                 let x_loc = ((x % spec.slot_glyph_size) as i32) - ((spec.padding_px / 2) as i32);
                 let y_loc = ((y % spec.slot_glyph_size) as i32) - ((spec.padding_px / 2) as i32);
                 // outside of glyph dimensions use a transparent, black pixel (0,0,0,0)
-                if x_loc < 0 || y_loc < 0 || x_loc >= gwidth[glyph_index] ||
-                    y_loc >= grows[glyph_index] {
+                if x_loc < 0 || y_loc < 0 || x_loc >= glyph_tab.width[glyph_index] ||
+                    y_loc >= glyph_tab.rows[glyph_index] {
                     atlas_buffer[atlas_buffer_index] = 0;
                     atlas_buffer_index += 1;
                     atlas_buffer[atlas_buffer_index] = 0;
@@ -193,20 +228,20 @@ fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
                     // this is 1, but it's safer to put it in anyway
                     // int bytes_per_pixel = gwidth[glyph_index] / gpitch[glyph_index];
                     // int bytes_in_glyph = grows[glyph_index] * gpitch[glyph_index];
-                    let byte_order_in_glyph = y_loc * gwidth[glyph_index] + x_loc;
+                    let byte_order_in_glyph = y_loc * glyph_tab.width[glyph_index] + x_loc;
                     let mut colour = [0 as u8; 4];
-                    colour[0] = glyph_buffer[&glyph_index].data[byte_order_in_glyph as usize];
+                    colour[0] = glyph_tab.buffer[&glyph_index].data[byte_order_in_glyph as usize];
                     colour[1] = colour[0];
                     colour[2] = colour[0];
                     colour[3] = colour[0];
                     // print byte from glyph
-                    atlas_buffer[atlas_buffer_index] = glyph_buffer[&glyph_index].data[byte_order_in_glyph as usize];
+                    atlas_buffer[atlas_buffer_index] = glyph_tab.buffer[&glyph_index].data[byte_order_in_glyph as usize];
                     atlas_buffer_index += 1;
-                    atlas_buffer[atlas_buffer_index] = glyph_buffer[&glyph_index].data[byte_order_in_glyph as usize];
+                    atlas_buffer[atlas_buffer_index] = glyph_tab.buffer[&glyph_index].data[byte_order_in_glyph as usize];
                     atlas_buffer_index += 1;
-                    atlas_buffer[atlas_buffer_index] = glyph_buffer[&glyph_index].data[byte_order_in_glyph as usize];
+                    atlas_buffer[atlas_buffer_index] = glyph_tab.buffer[&glyph_index].data[byte_order_in_glyph as usize];
                     atlas_buffer_index += 1;
-                    atlas_buffer[atlas_buffer_index] = glyph_buffer[&glyph_index].data[byte_order_in_glyph as usize];
+                    atlas_buffer[atlas_buffer_index] = glyph_tab.buffer[&glyph_index].data[byte_order_in_glyph as usize];
                     atlas_buffer_index += 1;
                 }
                 // write black in non-graphical ASCII boxes
@@ -223,21 +258,23 @@ fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
         }
     }
 
-    BitmapAtlas {
-        metadata: metadata,
-        glyphs: glyph_buffer,
-        buffer: atlas_buffer,
-    }
+    atlas_buffer
 }
 
-fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
-    let bitmap = glyph.bitmap();
-    let rows = bitmap.rows() as usize;
-    let pitch = bitmap.pitch() as usize;
-    let mut glyph_data = vec![0 as u8; rows * pitch];
-    glyph_data.clone_from_slice(bitmap.buffer());
+fn create_bitmap_atlas(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
+    let glyph_tab = sample_typeface(face, spec);
+    let metadata = create_bitmap_metadata(&glyph_tab, spec);
+    let atlas_buffer = create_bitmap_buffer(&glyph_tab, spec);
 
-    GlyphImage::new(glyph_data)
+    BitmapAtlas {
+        dimensions_px: spec.dimensions_px,
+        columns: spec.columns,
+        padding_px: spec.padding_px,
+        slot_glyph_size: spec.slot_glyph_size,
+        glyph_px: spec.glyph_px,
+        metadata: metadata,
+        buffer: atlas_buffer,
+    }
 }
 
 fn write_metadata(metadata: &HashMap<usize, GlyphMetadata>, path: &Path) -> io::Result<()> {
@@ -259,6 +296,13 @@ fn write_metadata(metadata: &HashMap<usize, GlyphMetadata>, path: &Path) -> io::
     }
 
     Ok(())
+}
+
+fn write_atlas_buffer(atlas: &BitmapAtlas, path: &Path) -> io::Result<()> {
+    image::save_buffer(
+        path, &atlas.buffer,
+        atlas.dimensions_px as u32, atlas.dimensions_px as u32, image::RGBA(8)
+    )
 }
 
 fn main() {
@@ -290,7 +334,7 @@ fn main() {
     let atlas_spec = AtlasSpec::new(
         atlas_dimensions_px, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
     );
-    let atlas = sample_typeface(face, atlas_spec);
+    let atlas = create_bitmap_atlas(face, atlas_spec);
     // ********************************************************************************
     // END BITMAP FONT ATLAS
     // ********************************************************************************
@@ -306,10 +350,8 @@ fn main() {
 
     // Write out the image.
     // use stb_image_write to write directly to png
-    if image::save_buffer(
-        PNG_OUTPUT_IMAGE, &atlas.buffer,
-        atlas_dimensions_px as u32, atlas_dimensions_px as u32, image::RGBA(8)).is_err() {
-
+    let path = Path::new(PNG_OUTPUT_IMAGE);
+    if write_atlas_buffer(&atlas, path).is_err() {
         eprintln!("ERROR: Could not write file {}", PNG_OUTPUT_IMAGE);
         panic!(); // process::exit(1);
     }
