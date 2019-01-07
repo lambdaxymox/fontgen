@@ -277,7 +277,7 @@ fn create_bitmap_atlas(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtl
     }
 }
 
-fn write_metadata<P: AsRef<Path>>(metadata: &HashMap<usize, GlyphMetadata>, path: P) -> io::Result<()> {
+fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()> {
     // write meta-data file to go with atlas image
     let mut file = match File::create(path) {
         Ok(val) => val,
@@ -287,7 +287,7 @@ fn write_metadata<P: AsRef<Path>>(metadata: &HashMap<usize, GlyphMetadata>, path
     // comment, reminding me what each column is
     writeln!(file, "// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset").unwrap();
     // write a line for each regular character
-    for glyph in metadata.values() {
+    for glyph in atlas.metadata.values() {
         writeln!(
             file, "{} {} {} {} {} {}",
             glyph.code_point, glyph.x_min,
@@ -333,7 +333,7 @@ fn main() {
     );
     let atlas = create_bitmap_atlas(face, atlas_spec);
 
-    match write_metadata(&atlas.metadata, ATLAS_META_FILE) {
+    match write_metadata(&atlas, ATLAS_META_FILE) {
         Err(_) => {
             eprintln!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
             panic!(); // process::exit(1);
