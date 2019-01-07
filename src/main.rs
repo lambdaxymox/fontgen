@@ -129,40 +129,19 @@ fn sample_typeface(
     // set height in pixels width 0 height 48 (48x48)
     face.set_pixel_sizes(0, spec.glyph_px as u32).map_err(|e| {
         SampleTypefaceError::SetPixelSize(spec.glyph_px)
-    });
-    /*
-    {
-        Ok(_) => {}
-        Err(_) => {
-            eprintln!("Could not set pixel size for font");
-            panic!(); // process::exit(1);
-        }
-    }
-    */
+    })?;
 
     for i in 33..256 {
         face.load_char(i, freetype::face::LoadFlag::RENDER).map_err(|e| {
             SampleTypefaceError::LoadCharacter(i)
-        });
-        /*
-        if face.load_char(i, freetype::face::LoadFlag::RENDER).map_err() {
-            eprintln!("Could not load character {:x}", i);
-            panic!(); // process::exit(1);
-        }
-        */
+        })?;
 
         // draw glyph image anti-aliased
         let glyph_handle = face.glyph();
 
         glyph_handle.render_glyph(freetype::render_mode::RenderMode::Normal).map_err(|e| {
             SampleTypefaceError::RenderCharacter(i)
-        });
-        /*
-        if glyph_handle.render_glyph(freetype::render_mode::RenderMode::Normal).is_err() {
-            eprintln!("Could not render character {:x}", i);
-            panic!(); // process::exit(1);
-        }
-        */
+        })?;
 
         // get dimensions of bitmap
         glyph_rows[i] = glyph_handle.bitmap().rows();
@@ -180,15 +159,6 @@ fn sample_typeface(
                 return Err(SampleTypefaceError::GetGlyphImage(i));
             }
         };
-        /*
-        let glyph = match glyph_handle.get_glyph() {
-            Ok(val) => val,
-            Err(_) => {
-                eprintln!("Could not get glyph handle {}", i);
-                panic!(); //process::exit(1);
-            }
-        };
-        */
 
         // get bbox. "truncated" mode means get dimensions in pixels
         let bbox = glyph.get_cbox(freetype::ffi::FT_GLYPH_BBOX_TRUNCATE);
