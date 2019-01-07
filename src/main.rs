@@ -18,13 +18,23 @@ const PNG_OUTPUT_IMAGE: &str = "atlas.png";
 const ATLAS_META_FILE: &str = "atlas.meta";
 
 
+///
+/// The atlas specification is a description of the dimensions of the atlas
+/// and the dimensions of each glyph in the atlas. This comes in as input at
+/// runtime.
+///
 #[derive(Copy, Clone)]
 struct AtlasSpec {
-    dimensions_px: usize,   // atlas size in pixels
-    columns: usize,         // number of glyphs across atlas
-    padding_px: usize,      // total space in glyph size for outlines
-    slot_glyph_size: usize, // glyph maximum size in pixels
-    glyph_px: usize,        // leave some padding for outlines
+    /// The size of the atlas, in pixels.
+    dimensions_px: usize,
+    /// The number of glyphs per row in the atlas.
+    columns: usize,
+    /// The amount of padding available for outlines in the glyph.
+    padding_px: usize,
+    /// The maximum size of a glyph slot, in pixels.
+    slot_glyph_size: usize,
+    /// The size of a glyph inside the slot, leaving room for padding for outlines.
+    glyph_px: usize,
 }
 
 impl AtlasSpec {
