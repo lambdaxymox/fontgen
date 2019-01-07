@@ -328,16 +328,11 @@ fn main() {
     let slot_glyph_size = 64;             // glyph maximum size in pixels
     let atlas_glyph_px = 64 - padding_px; // leave some padding for outlines
 
-    // *******************************************************************************
-    // BEGIN BITMAP FONT ATLAS
-    // *******************************************************************************
     let atlas_spec = AtlasSpec::new(
         atlas_dimensions_px, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
     );
     let atlas = create_bitmap_atlas(face, atlas_spec);
-    // ********************************************************************************
-    // END BITMAP FONT ATLAS
-    // ********************************************************************************
+
     match write_metadata(&atlas.metadata, ATLAS_META_FILE) {
         Err(_) => {
             eprintln!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
@@ -354,4 +349,3 @@ fn main() {
     }
     // End write out the image.
 }
-
