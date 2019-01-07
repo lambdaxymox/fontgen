@@ -16,7 +16,6 @@ const PNG_OUTPUT_IMAGE: &str = "atlas.png";
 const ATLAS_META_FILE: &str = "atlas.meta";
 
 
-
 #[derive(Copy, Clone)]
 struct AtlasSpec {
     dimensions_px: usize,   // atlas size in pixels
@@ -108,7 +107,18 @@ fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
     GlyphImage::new(glyph_data)
 }
 
-fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> GlyphTable {
+
+#[derive(Debug)]
+enum SampleTypefaceError {
+    SetPixelSize(usize),
+    LoadCharacter(usize),
+    RenderCharacter(usize),
+    GetGlyphImage(usize),
+}
+
+fn sample_typeface(
+    face: freetype::face::Face, spec: AtlasSpec) -> Result<GlyphTable, SampleTypefaceError> {
+
     // Tell FreeType the maximum size of each glyph, in pixels.
     let mut glyph_rows = vec![0 as i32; 256];   // glyph height in pixels
     let mut glyph_width = vec![0 as i32; 256];  // glyph width in pixels
@@ -117,26 +127,42 @@ fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> GlyphTable {
     let mut glyph_buffer = HashMap::new(); // stored glyph images
 
     // set height in pixels width 0 height 48 (48x48)
-    match face.set_pixel_sizes(0, spec.glyph_px as u32) {
+    face.set_pixel_sizes(0, spec.glyph_px as u32).map_err(|e| {
+        SampleTypefaceError::SetPixelSize(spec.glyph_px)
+    });
+    /*
+    {
         Ok(_) => {}
         Err(_) => {
             eprintln!("Could not set pixel size for font");
             panic!(); // process::exit(1);
         }
-    };
+    }
+    */
 
     for i in 33..256 {
-        if face.load_char(i, freetype::face::LoadFlag::RENDER).is_err() {
+        face.load_char(i, freetype::face::LoadFlag::RENDER).map_err(|e| {
+            SampleTypefaceError::LoadCharacter(i)
+        });
+        /*
+        if face.load_char(i, freetype::face::LoadFlag::RENDER).map_err() {
             eprintln!("Could not load character {:x}", i);
             panic!(); // process::exit(1);
         }
+        */
 
         // draw glyph image anti-aliased
         let glyph_handle = face.glyph();
+
+        glyph_handle.render_glyph(freetype::render_mode::RenderMode::Normal).map_err(|e| {
+            SampleTypefaceError::RenderCharacter(i)
+        });
+        /*
         if glyph_handle.render_glyph(freetype::render_mode::RenderMode::Normal).is_err() {
             eprintln!("Could not render character {:x}", i);
             panic!(); // process::exit(1);
         }
+        */
 
         // get dimensions of bitmap
         glyph_rows[i] = glyph_handle.bitmap().rows();
@@ -151,24 +177,31 @@ fn sample_typeface(face: freetype::face::Face, spec: AtlasSpec) -> GlyphTable {
         let glyph = match glyph_handle.get_glyph() {
             Ok(val) => val,
             Err(_) => {
+                return Err(SampleTypefaceError::GetGlyphImage(i));
+            }
+        };
+        /*
+        let glyph = match glyph_handle.get_glyph() {
+            Ok(val) => val,
+            Err(_) => {
                 eprintln!("Could not get glyph handle {}", i);
                 panic!(); //process::exit(1);
             }
         };
-
+        */
 
         // get bbox. "truncated" mode means get dimensions in pixels
         let bbox = glyph.get_cbox(freetype::ffi::FT_GLYPH_BBOX_TRUNCATE);
         glyph_ymin[i] = bbox.yMin;
     }
 
-    GlyphTable {
+    Ok(GlyphTable {
         rows: glyph_rows,
         width: glyph_width,
         pitch: glyph_pitch,
         y_min: glyph_ymin,
         buffer: glyph_buffer,
-    }
+    })
 }
 
 fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<usize, GlyphMetadata> {
@@ -262,7 +295,7 @@ fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
 }
 
 fn create_bitmap_atlas(face: freetype::face::Face, spec: AtlasSpec) -> BitmapAtlas {
-    let glyph_tab = sample_typeface(face, spec);
+    let glyph_tab = sample_typeface(face, spec).unwrap();
     let metadata = create_bitmap_metadata(&glyph_tab, spec);
     let atlas_buffer = create_bitmap_buffer(&glyph_tab, spec);
 
@@ -306,13 +339,7 @@ fn write_atlas_buffer<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Resul
 }
 
 fn main() {
-    let ft = match Library::init() {
-        Ok(val) => val,
-        Err(_) => {
-            panic!("Failed to initialize FreeType library.");
-        }
-    };
-
+    let ft = Library::init().expect("Failed to initialize FreeType library.");
     let face = match ft.new_face(FONT_FILE, 0) {
         Ok(val) => val,
         Err(_) => {
@@ -337,11 +364,8 @@ fn main() {
         panic!(); // process::exit(1);
     }
 
-    // Write out the image.
-    // use stb_image_write to write directly to png
     if write_atlas_buffer(&atlas, PNG_OUTPUT_IMAGE).is_err() {
         eprintln!("ERROR: Could not write file {}", PNG_OUTPUT_IMAGE);
         panic!(); // process::exit(1);
     }
-    // End write out the image.
 }
