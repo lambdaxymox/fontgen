@@ -333,12 +333,9 @@ fn main() {
     );
     let atlas = create_bitmap_atlas(face, atlas_spec);
 
-    match write_metadata(&atlas, ATLAS_META_FILE) {
-        Err(_) => {
-            eprintln!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
-            panic!(); // process::exit(1);
-        }
-        _ => {}
+    if write_metadata(&atlas, ATLAS_META_FILE).is_err() {
+        eprintln!("Failed to create atlas metadata file {}", ATLAS_META_FILE);
+        panic!(); // process::exit(1);
     }
 
     // Write out the image.
