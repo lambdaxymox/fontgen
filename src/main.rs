@@ -405,6 +405,10 @@ fn run_app() -> Result<(), String> {
     Ok(())
 }
 
+
+///
+/// The shell input options for `fontgen`.
+///
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "fontgen",
