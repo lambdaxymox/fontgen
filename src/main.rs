@@ -1,5 +1,6 @@
 extern crate freetype;
 extern crate image;
+extern crate structopt;
 
 use freetype::Library;
 use std::collections::HashMap;
@@ -9,8 +10,9 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::mem;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::process;
+use structopt::StructOpt;
 
 
 const FONT_FILE: &str = "assets/FreeMono.ttf";
@@ -403,7 +405,33 @@ fn run_app() -> Result<(), String> {
     Ok(())
 }
 
+#[derive(Debug, StructOpt)]
+#[structopt(
+    name = "fontgen",
+    about = "A shell utility for converting TrueType or OpenType fonts into bitmapped fonts."
+)]
+struct Opt {
+    /// The path to the input file.
+    #[structopt(parse(from_os_str))]
+    #[structopt(short = "i", long = "input")]
+    input_path: PathBuf,
+    #[structopt(parse(from_os_str))]
+    #[structopt(short = "o", long = "output")]
+    /// The path to the output file.
+    output_path: PathBuf,
+    #[structopt(long = "slot-glyph-size", default_value = "64")]
+    /// The size, in pixels, of a glyph slot in the font sheet. The slot glyph
+    /// is not necessarily the same as the glyph size because a glyph slot can contain padding.
+    slot_glyph_size: usize,
+    #[structopt(short = "p", long = "padding", default_value = "0")]
+    /// The glyph slot padding size, in pixels. This is the number of pixels away from the
+    /// boundary of a glyph slot a glyph will be placed.
+    padding: usize,
+}
+
 fn main() {
+    let opt = Opt::from_args();
+    println!("{:?}", opt);
     process::exit(match run_app() {
         Ok(_) => {
             0
