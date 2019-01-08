@@ -433,9 +433,41 @@ struct Opt {
     padding: usize,
 }
 
+#[derive(Clone, Debug)]
+enum OptError {
+    InputFileDoesNotExist(PathBuf),
+    OutputFileExists(PathBuf),
+    SlotGlyphSizeCannotBeZero(usize),
+    PaddingLargerThanSlotGlyphSize(usize, usize),
+}
+
+fn verify_opt(opt: &Opt) -> Result<(), OptError> {
+    if !opt.input_path.exists() {
+        return Err(OptError::InputFileDoesNotExist(opt.input_path.clone()));
+    }
+    if opt.output_path.exists() {
+        return Err(OptError::OutputFileExists(opt.output_path.clone()));
+    }
+    if !(opt.slot_glyph_size > 0) {
+        return Err(OptError::SlotGlyphSizeCannotBeZero(opt.slot_glyph_size));
+    }
+    if opt.padding > opt.slot_glyph_size {
+        return Err(OptError::PaddingLargerThanSlotGlyphSize(opt.padding, opt.slot_glyph_size));
+    }
+
+    Ok(())
+}
+
 fn main() {
     let opt = Opt::from_args();
-    println!("{:?}", opt);
+    match verify_opt(&opt) {
+        Err(e) => {
+            eprintln!("Error: {:?}", e);
+            process::exit(1);
+        }
+        Ok(_) => {}
+    }
+
     process::exit(match run_app() {
         Ok(_) => {
             0
