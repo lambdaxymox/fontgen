@@ -33,3 +33,22 @@ fn generate_a_font_sheet_from_a_ttf_file() -> Result<(), Box<std::error::Error>>
 
     Ok(())
 }
+
+///
+/// Attempt to generate a font sheet from a file that does not exist.
+///
+#[test]
+fn generate_a_font_sheet_that_does_not_exist() -> Result<(), Box<std::error::Error>> {
+    let mut cmd = Command::main_binary()?;
+    cmd.arg("--input")
+        .arg("assets/DoesNotExist.ttf")
+        .arg("--output")
+        .arg("DoesNotExist.png")
+        .arg("--padding")
+        .arg("6")
+        .arg("--slot-glyph-size")
+        .arg("128");
+    cmd.assert().failure();
+
+    Ok(())
+}
