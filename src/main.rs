@@ -23,28 +23,28 @@ use structopt::StructOpt;
 #[derive(Copy, Clone)]
 struct AtlasSpec {
     /// The size of the atlas, in pixels.
-    dimensions_px: usize,
+    dimensions: usize,
     /// The number of glyphs per row in the atlas.
     columns: usize,
-    /// The amount of padding available for outlines in the glyph.
-    padding_px: usize,
+    /// The amount of padding available for outlines in the glyph, in pixels.
+    padding: usize,
     /// The maximum size of a glyph slot, in pixels.
     slot_glyph_size: usize,
     /// The size of a glyph inside the slot, leaving room for padding for outlines.
-    glyph_px: usize,
+    glyph_size: usize,
 }
 
 impl AtlasSpec {
     fn new(
-        dimensions_px: usize, columns: usize,
-        padding_px: usize, slot_glyph_size: usize, glyph_px: usize) -> AtlasSpec {
+        dimensions: usize, columns: usize,
+        padding: usize, slot_glyph_size: usize, glyph_size: usize) -> AtlasSpec {
 
         AtlasSpec {
-            dimensions_px: dimensions_px,
+            dimensions: dimensions,
             columns: columns,
-            padding_px: padding_px,
+            padding: padding,
             slot_glyph_size: slot_glyph_size,
-            glyph_px: glyph_px,
+            glyph_size: glyph_size,
         }
     }
 }
@@ -104,11 +104,11 @@ impl GlyphMetadata {
 /// A `BitmapAtlas` is a bitmapped font sheet.
 ///
 struct BitmapAtlas {
-    dimensions_px: usize,
+    dimensions: usize,
     columns: usize,
-    padding_px: usize,
+    padding: usize,
     slot_glyph_size: usize,
-    glyph_px: usize,
+    glyph_size: usize,
     metadata: HashMap<usize, GlyphMetadata>,
     buffer: Vec<u8>,
 }
@@ -218,8 +218,8 @@ fn sample_typeface(
     let mut glyph_buffer = HashMap::new();
 
     // Set the height in pixels width 0 height 48 (48x48).
-    face.set_pixel_sizes(0, spec.glyph_px as u32).map_err(|e| {
-        SampleTypefaceError::SetPixelSize(e, 0, spec.glyph_px)
+    face.set_pixel_sizes(0, spec.glyph_size as u32).map_err(|e| {
+        SampleTypefaceError::SetPixelSize(e, 0, spec.glyph_size)
     })?;
 
     for i in 33..256 {
@@ -278,11 +278,11 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
         let row = order % spec.columns;
 
         // Glyph metadata parameters.
-        let x_min = (col * spec.slot_glyph_size) as f32 / spec.dimensions_px as f32;
-        let y_min = (row * spec.slot_glyph_size) as f32 / spec.dimensions_px as f32;
-        let width = (glyph_tab.width[*i] + spec.padding_px as i32) as f32 / spec.slot_glyph_size as f32;
-        let height = (glyph_tab.rows[*i] + spec.padding_px as i32) as f32 / spec.slot_glyph_size as f32;
-        let y_offset = -(spec.padding_px as f32 - glyph_tab.y_min[*i] as f32) / spec.slot_glyph_size as f32;
+        let x_min = (col * spec.slot_glyph_size) as f32 / spec.dimensions as f32;
+        let y_min = (row * spec.slot_glyph_size) as f32 / spec.dimensions as f32;
+        let width = (glyph_tab.width[*i] + spec.padding as i32) as f32 / spec.slot_glyph_size as f32;
+        let height = (glyph_tab.rows[*i] + spec.padding as i32) as f32 / spec.slot_glyph_size as f32;
+        let y_offset = -(spec.padding as f32 - glyph_tab.y_min[*i] as f32) / spec.slot_glyph_size as f32;
 
         let glyph_metadata_i = GlyphMetadata::new(*i, width, height, x_min, y_min, y_offset);
         metadata.insert(*i, glyph_metadata_i);
@@ -297,11 +297,11 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
 fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
     // Next we can open a file stream to write our atlas image to
     let mut atlas_buffer = vec![
-        0 as u8; spec.dimensions_px * spec.dimensions_px * 4 * mem::size_of::<u8>()
+        0 as u8; spec.dimensions * spec.dimensions * 4 * mem::size_of::<u8>()
     ];
     let mut atlas_buffer_index = 0;
-    for y in 0..spec.dimensions_px {
-        for x in 0..spec.dimensions_px {
+    for y in 0..spec.dimensions {
+        for x in 0..spec.dimensions {
             // work out which grid slot (col, row) we are in i.e. out of 16 glyphs x 16 glyphs.
             let col = x / spec.slot_glyph_size;
             let row = y / spec.slot_glyph_size;
@@ -311,8 +311,8 @@ fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
             if (glyph_index > 32) && (glyph_index < 256) {
                 // A glyph exists for this code point in the bitmap.
                 // Pixel indices within padded glyph slot area.
-                let x_loc = ((x % spec.slot_glyph_size) as i32) - ((spec.padding_px / 2) as i32);
-                let y_loc = ((y % spec.slot_glyph_size) as i32) - ((spec.padding_px / 2) as i32);
+                let x_loc = ((x % spec.slot_glyph_size) as i32) - ((spec.padding / 2) as i32);
+                let y_loc = ((y % spec.slot_glyph_size) as i32) - ((spec.padding / 2) as i32);
                 // Outside of the glyph dimensions we use as default value a
                 // transparent black pixel (0,0,0,0).
                 if x_loc < 0 || y_loc < 0 || x_loc >= glyph_tab.width[glyph_index] ||
@@ -377,11 +377,11 @@ fn create_bitmap_atlas(
     let atlas_buffer = create_bitmap_buffer(&glyph_tab, spec);
 
     Ok(BitmapAtlas {
-        dimensions_px: spec.dimensions_px,
+        dimensions: spec.dimensions,
         columns: spec.columns,
-        padding_px: spec.padding_px,
+        padding: spec.padding,
         slot_glyph_size: spec.slot_glyph_size,
-        glyph_px: spec.glyph_px,
+        glyph_size: spec.glyph_size,
         metadata: metadata,
         buffer: atlas_buffer,
     })
@@ -416,7 +416,7 @@ fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()
 fn write_atlas_buffer<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()> {
     image::save_buffer(
         path, &atlas.buffer,
-        atlas.dimensions_px as u32, atlas.dimensions_px as u32, image::RGBA(8)
+        atlas.dimensions as u32, atlas.dimensions as u32, image::RGBA(8)
     )
 }
 
