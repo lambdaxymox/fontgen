@@ -54,6 +54,9 @@ impl AtlasSpec {
     }
 }
 
+///
+/// A `GlyphImage` is a bitmapped representation of a single font glyph.
+///
 #[derive(Clone)]
 struct GlyphImage {
     data: Vec<u8>,
@@ -67,11 +70,20 @@ impl GlyphImage {
     }
 }
 
+///
+/// A `GlyphMetadata` struct stores the parameters necessary to represent
+/// the glyph in a bitmap font atlas.
+///
 struct GlyphMetadata {
+    /// The unicode code point.
     code_point: usize,
+    ///
     x_min: f32,
+    /// The width of the glyph, stored in [0,1].
     width: f32,
+    /// The height of the glyph, represented in the interval [0,1].
     height: f32,
+    /// The maximum depth of the glyph that falls below the baseline for the font.
     y_min: f32,
     y_offset: f32,
 }
@@ -93,6 +105,9 @@ impl GlyphMetadata {
     }
 }
 
+///
+/// A `BitmapAtlas` is a bitmapped font sheet.
+///
 struct BitmapAtlas {
     dimensions_px: usize,
     columns: usize,
