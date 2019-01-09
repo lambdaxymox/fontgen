@@ -1,6 +1,6 @@
 [package]
 name = "fontgen"
-version = "0.2.0"
+version = "0.3.0"
 authors = ["Stallmanifold <stallmanifold@gmail.com>"]
 edition = "2018"
 description = "A shell utility for converting a vector (i.e. ttf or otf) to a bitmapped font sheet."
