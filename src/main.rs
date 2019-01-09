@@ -365,47 +365,6 @@ fn write_atlas_buffer<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Resul
     )
 }
 
-fn run_app() -> Result<(), String> {
-    let ft = Library::init().expect("Failed to initialize FreeType library.");
-    let face = match ft.new_face(FONT_FILE, 0) {
-        Ok(val) => val,
-        Err(_) => {
-            return Err(format!("Could not open font file: {}.", FONT_FILE));
-        }
-    };
-
-    let atlas_dimensions_px = 1024;       // atlas size in pixels
-    let atlas_columns = 16;               // number of glyphs across atlas
-    let padding_px = 6;                   // total space in glyph size for outlines
-    let slot_glyph_size = 64;             // glyph maximum size in pixels
-    let atlas_glyph_px = 64 - padding_px; // leave some padding for outlines
-
-    let atlas_spec = AtlasSpec::new(
-        atlas_dimensions_px, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
-    );
-    let atlas = match create_bitmap_atlas(face, atlas_spec) {
-        Ok(val) => val,
-        Err(e) => {
-            return Err(format!("Could create bitmap font. Got error: {}", e));
-        }
-    };
-
-    if write_metadata(&atlas, ATLAS_META_FILE).is_err() {
-        return Err(format!(
-            "Could not create atlas metadata file: {}.", ATLAS_META_FILE
-        ));
-    }
-
-    if write_atlas_buffer(&atlas, PNG_OUTPUT_IMAGE).is_err() {
-        return Err(format!(
-            "Could not create atlas font sheet file: {}.", PNG_OUTPUT_IMAGE
-        ));
-    }
-
-    Ok(())
-}
-
-
 ///
 /// The shell input options for `fontgen`.
 ///
@@ -436,7 +395,9 @@ struct Opt {
 #[derive(Clone, Debug)]
 enum OptError {
     InputFileDoesNotExist(PathBuf),
+    InputFileIsNotAFile(PathBuf),
     OutputFileExists(PathBuf),
+    OutputPathIsNotAFile(PathBuf),
     SlotGlyphSizeCannotBeZero(usize),
     PaddingLargerThanSlotGlyphSize(usize, usize),
 }
@@ -445,14 +406,64 @@ fn verify_opt(opt: &Opt) -> Result<(), OptError> {
     if !opt.input_path.exists() {
         return Err(OptError::InputFileDoesNotExist(opt.input_path.clone()));
     }
+    if !opt.input_path.is_file() {
+        return Err(OptError::InputFileIsNotAFile(opt.input_path.clone()));
+    }
     if opt.output_path.exists() {
         return Err(OptError::OutputFileExists(opt.output_path.clone()));
+    }
+    if !opt.output_path.is_file() {
+        return Err(OptError::OutputPathIsNotAFile(opt.output_path.clone()));
     }
     if !(opt.slot_glyph_size > 0) {
         return Err(OptError::SlotGlyphSizeCannotBeZero(opt.slot_glyph_size));
     }
     if opt.padding > opt.slot_glyph_size {
         return Err(OptError::PaddingLargerThanSlotGlyphSize(opt.padding, opt.slot_glyph_size));
+    }
+
+    Ok(())
+}
+
+fn run_app(opt: &Opt) -> Result<(), String> {
+    let ft = Library::init().expect("Failed to initialize FreeType library.");
+    let face = match ft.new_face(&opt.input_path, 0) {
+        Ok(val) => val,
+        Err(_) => {
+            return Err(format!("Could not open font file: {}.", &opt.input_path.display()));
+        }
+    };
+
+    let slot_glyph_size = opt.slot_glyph_size;         // glyph maximum size in pixels
+    let atlas_columns = 16;                            // number of glyphs across atlas
+    let atlas_dimensions_px = slot_glyph_size * atlas_columns;       // atlas size in pixels
+    let padding_px = opt.padding;                      // total space in glyph size for outlines
+    let atlas_glyph_px = slot_glyph_size - padding_px; // leave some padding for outlines
+    let mut atlas_meta_file = opt.output_path.clone();
+    atlas_meta_file.set_extension("meta");
+    let mut atlas_image_file = opt.output_path.clone();
+    atlas_image_file.set_extension("png");
+
+    let atlas_spec = AtlasSpec::new(
+        atlas_dimensions_px, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
+    );
+    let atlas = match create_bitmap_atlas(face, atlas_spec) {
+        Ok(val) => val,
+        Err(e) => {
+            return Err(format!("Could create bitmap font. Got error: {}", e));
+        }
+    };
+
+    if write_metadata(&atlas, &atlas_meta_file).is_err() {
+        return Err(format!(
+            "Could not create atlas metadata file: {}.", atlas_meta_file.display()
+        ));
+    }
+
+    if write_atlas_buffer(&atlas, &atlas_image_file).is_err() {
+        return Err(format!(
+            "Could not create atlas font sheet file: {}.", atlas_image_file.display()
+        ));
     }
 
     Ok(())
@@ -468,7 +479,7 @@ fn main() {
         Ok(_) => {}
     }
 
-    process::exit(match run_app() {
+    process::exit(match run_app(&opt) {
         Ok(_) => {
             0
         },
