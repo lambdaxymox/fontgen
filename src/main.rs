@@ -412,9 +412,6 @@ fn verify_opt(opt: &Opt) -> Result<(), OptError> {
     if opt.output_path.exists() {
         return Err(OptError::OutputFileExists(opt.output_path.clone()));
     }
-    if !opt.output_path.is_file() {
-        return Err(OptError::OutputPathIsNotAFile(opt.output_path.clone()));
-    }
     if !(opt.slot_glyph_size > 0) {
         return Err(OptError::SlotGlyphSizeCannotBeZero(opt.slot_glyph_size));
     }
