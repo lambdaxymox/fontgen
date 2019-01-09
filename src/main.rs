@@ -111,10 +111,17 @@ struct GlyphTable {
     buffer: HashMap<usize, GlyphImage>,
 }
 
+///
+/// Sample a single bitmap image for a single glyph from a font. The FreeType library interns
+/// each sampled glyph image one at a time internally. Each time the library samples a new glyph,
+/// the old glyph gets overwritten, so the data must be copied out before each subsequent
+/// sampling of a new glyph.
+///
 fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
     let bitmap = glyph.bitmap();
     let rows = bitmap.rows() as usize;
     let pitch = bitmap.pitch() as usize;
+
     let mut glyph_data = vec![0 as u8; rows * pitch];
     glyph_data.clone_from_slice(bitmap.buffer());
 
@@ -167,18 +174,26 @@ impl error::Error for SampleTypefaceError {
     }
 }
 
-
+///
+/// Generate the glyph image for each individual glyph slot in the typeface to be
+/// mapped into the final atlas image.
+///
 fn sample_typeface(
     face: freetype::face::Face, spec: AtlasSpec) -> Result<GlyphTable, SampleTypefaceError> {
 
     // Tell FreeType the maximum size of each glyph, in pixels.
-    let mut glyph_rows = vec![0 as i32; 256];   // glyph height in pixels
-    let mut glyph_width = vec![0 as i32; 256];  // glyph width in pixels
-    let mut glyph_pitch = vec![0 as i32; 256];  // bytes per row of pixels
-    let mut glyph_ymin = vec![0 as i64; 256];   // offset for letters that dip below baseline like g and y
-    let mut glyph_buffer = HashMap::new(); // stored glyph images
+    // The glyph height in pixels.
+    let mut glyph_rows = vec![0 as i32; 256];
+    // The glyph width in pixels.
+    let mut glyph_width = vec![0 as i32; 256];
+    // The bytes to per row of pixels per glyph.
+    let mut glyph_pitch = vec![0 as i32; 256];
+    // The offset for letters that dip below the baseline like 'g' and 'y', for example.
+    let mut glyph_ymin = vec![0 as i64; 256];
+    // A table for storing the sampled glyph images.
+    let mut glyph_buffer = HashMap::new();
 
-    // set height in pixels width 0 height 48 (48x48)
+    // Set the height in pixels width 0 height 48 (48x48).
     face.set_pixel_sizes(0, spec.glyph_px as u32).map_err(|e| {
         SampleTypefaceError::SetPixelSize(0, spec.glyph_px)
     })?;
@@ -188,23 +203,22 @@ fn sample_typeface(
             SampleTypefaceError::LoadCharacter(i)
         })?;
 
-        // draw glyph image anti-aliased
+        // Draw a glyph image anti-aliased.
         let glyph_handle = face.glyph();
 
         glyph_handle.render_glyph(freetype::render_mode::RenderMode::Normal).map_err(|e| {
             SampleTypefaceError::RenderCharacter(i)
         })?;
 
-        // get dimensions of bitmap
+        // Get the dimensions of the bitmap.
         glyph_rows[i] = glyph_handle.bitmap().rows();
         glyph_width[i] = glyph_handle.bitmap().width();
         glyph_pitch[i] = glyph_handle.bitmap().pitch();
 
-        // copy glyph data into memory because it seems to be overwritten/lost later
         let glyph_image_i = create_glyph_image(glyph_handle);
         glyph_buffer.insert(i, glyph_image_i);
 
-        // get y-offset to place glyphs on baseline. this is in the bounding box
+        // Get the y-offset to place glyphs on baseline. This data lies in the bounding box.
         let glyph = match glyph_handle.get_glyph() {
             Ok(val) => val,
             Err(_) => {
@@ -212,7 +226,8 @@ fn sample_typeface(
             }
         };
 
-        // get bbox. "truncated" mode means get dimensions in pixels
+        // Get the bounding box. Here "truncated" mode means get the dimensions
+        // of the bounding box in pixels.
         let bbox = glyph.get_cbox(freetype::ffi::FT_GLYPH_BBOX_TRUNCATE);
         glyph_ymin[i] = bbox.yMin;
     }
@@ -226,6 +241,9 @@ fn sample_typeface(
     })
 }
 
+///
+/// Calculate the metadata for indexing into the atlas bitmap image.
+///
 fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<usize, GlyphMetadata> {
     let mut metadata = HashMap::new();
     let glyph_metadata_space = GlyphMetadata::new(32, 0.0, 0.5, 0.0, 1.0, 0.0);
@@ -249,6 +267,9 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
     metadata
 }
 
+///
+/// Pack the glyph bitmap images sampled from the typeface into a single bitmap image.
+///
 fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
     // Next we can open a file stream to write our atlas image to
     let mut atlas_buffer = vec![
@@ -316,6 +337,9 @@ fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
     atlas_buffer
 }
 
+///
+/// Create a bitmapped atlas from a vector based font atlas.
+///
 fn create_bitmap_atlas(
     face: freetype::face::Face, spec: AtlasSpec) -> Result<BitmapAtlas, SampleTypefaceError> {
 
@@ -337,8 +361,10 @@ fn create_bitmap_atlas(
     })
 }
 
+///
+/// Write the metadata file that accompanies the atlas image to a file.
+///
 fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()> {
-    // write meta-data file to go with atlas image
     let mut file = match File::create(path) {
         Ok(val) => val,
         Err(e) => return Err(e),
@@ -358,6 +384,9 @@ fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()
     Ok(())
 }
 
+///
+/// Write the atlas bitmap image to a file.
+///
 fn write_atlas_buffer<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()> {
     image::save_buffer(
         path, &atlas.buffer,
@@ -402,6 +431,9 @@ enum OptError {
     PaddingLargerThanSlotGlyphSize(usize, usize),
 }
 
+///
+/// Verify the input options.
+///
 fn verify_opt(opt: &Opt) -> Result<(), OptError> {
     if !opt.input_path.exists() {
         return Err(OptError::InputFileDoesNotExist(opt.input_path.clone()));
@@ -431,11 +463,11 @@ fn run_app(opt: &Opt) -> Result<(), String> {
         }
     };
 
-    let slot_glyph_size = opt.slot_glyph_size;         // glyph maximum size in pixels
-    let atlas_columns = 16;                            // number of glyphs across atlas
-    let atlas_dimensions_px = slot_glyph_size * atlas_columns;       // atlas size in pixels
-    let padding_px = opt.padding;                      // total space in glyph size for outlines
-    let atlas_glyph_px = slot_glyph_size - padding_px; // leave some padding for outlines
+    let slot_glyph_size = opt.slot_glyph_size;
+    let atlas_columns = 16;
+    let atlas_dimensions_px = slot_glyph_size * atlas_columns;
+    let padding_px = opt.padding;
+    let atlas_glyph_px = slot_glyph_size - padding_px;
     let mut atlas_meta_file = opt.output_path.clone();
     atlas_meta_file.set_extension("meta");
     let mut atlas_image_file = opt.output_path.clone();
