@@ -103,11 +103,20 @@ struct BitmapAtlas {
     buffer: Vec<u8>,
 }
 
+///
+/// A `GlyphTable` is an intermediate date structure storing all the typeface parameters
+/// for each glyph to be used in the construction of the final bitmap atlas.
+///
 struct GlyphTable {
+    /// the height of a glyph in pixels.
     rows: Vec<i32>,
+    /// the width of a row in a glyph in pixels.
     width: Vec<i32>,
+    /// The number of bytes per row in a glyph.
     pitch: Vec<i32>,
+    /// The offset in pixels of a character from the baseline.
     y_min: Vec<i64>,
+    /// A table holding the individual bitmap images for each glyph.
     buffer: HashMap<usize, GlyphImage>,
 }
 
@@ -131,34 +140,34 @@ fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
 
 #[derive(Copy, Clone, Debug)]
 enum SampleTypefaceError {
-    SetPixelSize(usize, usize),
-    LoadCharacter(usize),
-    RenderCharacter(usize),
-    GetGlyphImage(usize),
+    SetPixelSize(freetype::error::Error, usize, usize),
+    LoadCharacter(freetype::error::Error, usize),
+    RenderCharacter(freetype::error::Error, usize),
+    GetGlyphImage(freetype::error::Error, usize),
 }
 
 impl fmt::Display for SampleTypefaceError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            SampleTypefaceError::SetPixelSize(code_point, pixels) => {
+            SampleTypefaceError::SetPixelSize(_, code_point, pixels) => {
                 write!(
                     f, "The FreeType library failed to set the size of glyph {} to {} pixels.",
                     code_point, pixels
                 )
             }
-            SampleTypefaceError::LoadCharacter(code_point) => {
+            SampleTypefaceError::LoadCharacter(_, code_point) => {
                 write!(
                     f, "The FreeType library failed to load the character with code point {}.",
                     code_point
                 )
             }
-            SampleTypefaceError::RenderCharacter(code_point) => {
+            SampleTypefaceError::RenderCharacter(_, code_point) => {
                 write!(
                     f, "The FreeType library could not render the code point {}.",
                     code_point
                 )
             }
-            SampleTypefaceError::GetGlyphImage(code_point) => {
+            SampleTypefaceError::GetGlyphImage(_, code_point) => {
                 write!(
                     f, "The FreeType library extract the glyph image for the code point {}.",
                     code_point
@@ -170,7 +179,12 @@ impl fmt::Display for SampleTypefaceError {
 
 impl error::Error for SampleTypefaceError {
     fn source(&self) -> Option<&(dyn error::Error + 'static)> {
-        None
+        match self {
+            &SampleTypefaceError::SetPixelSize(ref e,_,_) => Some(e),
+            &SampleTypefaceError::LoadCharacter(ref e,_) => Some(e),
+            &SampleTypefaceError::RenderCharacter(ref e, _) => Some(e),
+            &SampleTypefaceError::GetGlyphImage(ref e,_) => Some(e),
+        }
     }
 }
 
@@ -195,19 +209,19 @@ fn sample_typeface(
 
     // Set the height in pixels width 0 height 48 (48x48).
     face.set_pixel_sizes(0, spec.glyph_px as u32).map_err(|e| {
-        SampleTypefaceError::SetPixelSize(0, spec.glyph_px)
+        SampleTypefaceError::SetPixelSize(e, 0, spec.glyph_px)
     })?;
 
     for i in 33..256 {
         face.load_char(i, freetype::face::LoadFlag::RENDER).map_err(|e| {
-            SampleTypefaceError::LoadCharacter(i)
+            SampleTypefaceError::LoadCharacter(e, i)
         })?;
 
         // Draw a glyph image anti-aliased.
         let glyph_handle = face.glyph();
 
         glyph_handle.render_glyph(freetype::render_mode::RenderMode::Normal).map_err(|e| {
-            SampleTypefaceError::RenderCharacter(i)
+            SampleTypefaceError::RenderCharacter(e, i)
         })?;
 
         // Get the dimensions of the bitmap.
@@ -221,13 +235,13 @@ fn sample_typeface(
         // Get the y-offset to place glyphs on baseline. This data lies in the bounding box.
         let glyph = match glyph_handle.get_glyph() {
             Ok(val) => val,
-            Err(_) => {
-                return Err(SampleTypefaceError::GetGlyphImage(i));
+            Err(e) => {
+                return Err(SampleTypefaceError::GetGlyphImage(e, i));
             }
         };
 
-        // Get the bounding box. Here "truncated" mode means get the dimensions
-        // of the bounding box in pixels.
+        // Get the bounding box. Here "truncated" mode specifies that the dimensions
+        // of the bounding box are given in pixels.
         let bbox = glyph.get_cbox(freetype::ffi::FT_GLYPH_BBOX_TRUNCATE);
         glyph_ymin[i] = bbox.yMin;
     }
@@ -278,18 +292,19 @@ fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
     let mut atlas_buffer_index = 0;
     for y in 0..spec.dimensions_px {
         for x in 0..spec.dimensions_px {
-            // work out which grid slot[col][row] we are in e.g out of 16x16
+            // work out which grid slot (col, row) we are in i.e. out of 16 glyphs x 16 glyphs.
             let col = x / spec.slot_glyph_size;
             let row = y / spec.slot_glyph_size;
             let order = row * spec.columns + col;
             let glyph_index = order + 32;
 
-            // an actual glyph bitmap exists for these indices
             if (glyph_index > 32) && (glyph_index < 256) {
-                // pixel indices within padded glyph slot area
+                // A glyph exists for this code point in the bitmap.
+                // Pixel indices within padded glyph slot area.
                 let x_loc = ((x % spec.slot_glyph_size) as i32) - ((spec.padding_px / 2) as i32);
                 let y_loc = ((y % spec.slot_glyph_size) as i32) - ((spec.padding_px / 2) as i32);
-                // outside of glyph dimensions use a transparent, black pixel (0,0,0,0)
+                // Outside of the glyph dimensions we use as default value a
+                // transparent black pixel (0,0,0,0).
                 if x_loc < 0 || y_loc < 0 || x_loc >= glyph_tab.width[glyph_index] ||
                     y_loc >= glyph_tab.rows[glyph_index] {
                     atlas_buffer[atlas_buffer_index] = 0;
@@ -310,7 +325,7 @@ fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
                     colour[1] = colour[0];
                     colour[2] = colour[0];
                     colour[3] = colour[0];
-                    // print byte from glyph
+
                     atlas_buffer[atlas_buffer_index] = glyph_tab.buffer[&glyph_index].data[byte_order_in_glyph as usize];
                     atlas_buffer_index += 1;
                     atlas_buffer[atlas_buffer_index] = glyph_tab.buffer[&glyph_index].data[byte_order_in_glyph as usize];
@@ -320,8 +335,9 @@ fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
                     atlas_buffer[atlas_buffer_index] = glyph_tab.buffer[&glyph_index].data[byte_order_in_glyph as usize];
                     atlas_buffer_index += 1;
                 }
-                // write black in non-graphical ASCII boxes
             } else {
+                // A glyph does not exist for this code point in the bitmap. We choose to use a
+                // a transparent black pixel value (0,0,0,0).
                 atlas_buffer[atlas_buffer_index] = 0;
                 atlas_buffer_index += 1;
                 atlas_buffer[atlas_buffer_index] = 0;
@@ -453,6 +469,9 @@ fn verify_opt(opt: &Opt) -> Result<(), OptError> {
     Ok(())
 }
 
+///
+/// Run the application.
+///
 fn run_app(opt: &Opt) -> Result<(), String> {
     let ft = Library::init().expect("Failed to initialize FreeType library.");
     let face = match ft.new_face(&opt.input_path, 0) {
