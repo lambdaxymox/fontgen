@@ -426,7 +426,6 @@ enum OptError {
     InputFileDoesNotExist(PathBuf),
     InputFileIsNotAFile(PathBuf),
     OutputFileExists(PathBuf),
-    OutputPathIsNotAFile(PathBuf),
     SlotGlyphSizeCannotBeZero(usize),
     PaddingLargerThanSlotGlyphSize(usize, usize),
 }
