@@ -15,11 +15,6 @@ use std::process;
 use structopt::StructOpt;
 
 
-const FONT_FILE: &str = "assets/FreeMono.ttf";
-const PNG_OUTPUT_IMAGE: &str = "atlas.png";
-const ATLAS_META_FILE: &str = "atlas.meta";
-
-
 ///
 /// The atlas specification is a description of the dimensions of the atlas
 /// and the dimensions of each glyph in the atlas. This comes in as input at
