@@ -122,7 +122,7 @@ struct BitmapAtlasMetadata {
 /// A `BitmapAtlas` is a bitmapped font sheet. It contains the glyph parameters necessary to
 /// index into the bitmap image as well as the bitmap image.
 ///
-struct BitmapAtlas {
+struct BitmapFontAtlas {
     metadata: BitmapAtlasMetadata,
     buffer: Vec<u8>,
 }
@@ -381,7 +381,7 @@ fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
 /// Create a bitmapped atlas from a vector based font atlas.
 ///
 fn create_bitmap_atlas(
-    face: freetype::face::Face, spec: AtlasSpec) -> Result<BitmapAtlas, SampleTypefaceError> {
+    face: freetype::face::Face, spec: AtlasSpec) -> Result<BitmapFontAtlas, SampleTypefaceError> {
 
     let glyph_tab = match sample_typeface(face, spec) {
         Ok(val) => val,
@@ -400,7 +400,7 @@ fn create_bitmap_atlas(
         glyph_metadata: glyph_metadata,
     };
 
-    Ok(BitmapAtlas {
+    Ok(BitmapFontAtlas {
         metadata: metadata,
         buffer: atlas_buffer,
     })
@@ -409,7 +409,7 @@ fn create_bitmap_atlas(
 ///
 /// Write the metadata file that accompanies the atlas image to a file.
 ///
-fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()> {
+fn write_metadata<P: AsRef<Path>>(atlas: &BitmapFontAtlas, path: P) -> io::Result<()> {
     let mut file = match File::create(path) {
         Ok(val) => val,
         Err(e) => return Err(e),
@@ -423,7 +423,7 @@ fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()
 ///
 /// Write the atlas bitmap image to a file.
 ///
-fn write_atlas_buffer<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()> {
+fn write_atlas_buffer<P: AsRef<Path>>(atlas: &BitmapFontAtlas, path: P) -> io::Result<()> {
     image::save_buffer(
         path, &atlas.buffer,
         atlas.metadata.dimensions as u32, atlas.metadata.dimensions as u32, image::RGBA(8)
