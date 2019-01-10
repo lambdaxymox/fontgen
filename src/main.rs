@@ -101,11 +101,13 @@ impl GlyphMetadata {
 }
 
 ///
-/// A `BitmapAtlas` is a bitmapped font sheet.
+/// A `BitmapAtlas` is a bitmapped font sheet. It contains the glyph parameters necessary to
+/// index into the bitmap image as well as the bitmap image.
 ///
 struct BitmapAtlas {
     dimensions: usize,
     columns: usize,
+    rows: usize,
     padding: usize,
     slot_glyph_size: usize,
     glyph_size: usize,
@@ -379,6 +381,7 @@ fn create_bitmap_atlas(
     Ok(BitmapAtlas {
         dimensions: spec.dimensions,
         columns: spec.columns,
+        rows: spec.columns,
         padding: spec.padding,
         slot_glyph_size: spec.slot_glyph_size,
         glyph_size: spec.glyph_size,
