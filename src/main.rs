@@ -1,6 +1,12 @@
 extern crate freetype;
 extern crate image;
 extern crate structopt;
+extern crate serde;
+extern crate serde_json;
+
+#[macro_use]
+extern crate serde_derive;
+
 
 use freetype::Library;
 use std::collections::HashMap;
@@ -69,6 +75,7 @@ impl GlyphImage {
 /// A `GlyphMetadata` struct stores the parameters necessary to represent
 /// the glyph in a bitmap font atlas.
 ///
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 struct GlyphMetadata {
     /// The unicode code point.
     code_point: usize,
@@ -100,18 +107,23 @@ impl GlyphMetadata {
     }
 }
 
-///
-/// A `BitmapAtlas` is a bitmapped font sheet. It contains the glyph parameters necessary to
-/// index into the bitmap image as well as the bitmap image.
-///
-struct BitmapAtlas {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+struct BitmapAtlasMetadata {
     dimensions: usize,
     columns: usize,
     rows: usize,
     padding: usize,
     slot_glyph_size: usize,
     glyph_size: usize,
-    metadata: HashMap<usize, GlyphMetadata>,
+    glyph_metadata: HashMap<usize, GlyphMetadata>,
+}
+
+///
+/// A `BitmapAtlas` is a bitmapped font sheet. It contains the glyph parameters necessary to
+/// index into the bitmap image as well as the bitmap image.
+///
+struct BitmapAtlas {
+    metadata: BitmapAtlasMetadata,
     buffer: Vec<u8>,
 }
 
@@ -375,16 +387,20 @@ fn create_bitmap_atlas(
         Ok(val) => val,
         Err(e) => return Err(e),
     };
-    let metadata = create_bitmap_metadata(&glyph_tab, spec);
+    let glyph_metadata = create_bitmap_metadata(&glyph_tab, spec);
     let atlas_buffer = create_bitmap_buffer(&glyph_tab, spec);
 
-    Ok(BitmapAtlas {
+    let metadata = BitmapAtlasMetadata {
         dimensions: spec.dimensions,
         columns: spec.columns,
         rows: spec.columns,
         padding: spec.padding,
         slot_glyph_size: spec.slot_glyph_size,
         glyph_size: spec.glyph_size,
+        glyph_metadata: glyph_metadata,
+    };
+
+    Ok(BitmapAtlas {
         metadata: metadata,
         buffer: atlas_buffer,
     })
@@ -402,7 +418,7 @@ fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()
     // comment, reminding me what each column is
     writeln!(file, "// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset").unwrap();
     // write a line for each regular character
-    for glyph in atlas.metadata.values() {
+    for glyph in atlas.metadata.glyph_metadata.values() {
         writeln!(
             file, "{} {} {} {} {} {}",
             glyph.code_point, glyph.x_min,
@@ -419,7 +435,7 @@ fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()
 fn write_atlas_buffer<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()> {
     image::save_buffer(
         path, &atlas.buffer,
-        atlas.dimensions as u32, atlas.dimensions as u32, image::RGBA(8)
+        atlas.metadata.dimensions as u32, atlas.metadata.dimensions as u32, image::RGBA(8)
     )
 }
 
