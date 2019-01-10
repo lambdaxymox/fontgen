@@ -415,6 +415,7 @@ fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()
         Err(e) => return Err(e),
     };
 
+    /*
     // comment, reminding me what each column is
     writeln!(file, "// ascii_code prop_xMin prop_width prop_yMin prop_height prop_y_offset").unwrap();
     // write a line for each regular character
@@ -425,6 +426,8 @@ fn write_metadata<P: AsRef<Path>>(atlas: &BitmapAtlas, path: P) -> io::Result<()
             glyph.width, glyph.y_min, glyph.height, glyph.y_offset
         ).unwrap();
     }
+    */
+    serde_json::to_writer_pretty(file, &atlas.metadata)?;
 
     Ok(())
 }
