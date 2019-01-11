@@ -108,7 +108,7 @@ impl GlyphMetadata {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-struct BitmapAtlasMetadata {
+struct BitmapFontAtlasMetadata {
     dimensions: usize,
     columns: usize,
     rows: usize,
@@ -119,11 +119,11 @@ struct BitmapAtlasMetadata {
 }
 
 ///
-/// A `BitmapAtlas` is a bitmapped font sheet. It contains the glyph parameters necessary to
+/// A `BitmapFontAtlas` is a bitmapped font sheet. It contains the glyph parameters necessary to
 /// index into the bitmap image as well as the bitmap image.
 ///
 struct BitmapFontAtlas {
-    metadata: BitmapAtlasMetadata,
+    metadata: BitmapFontAtlasMetadata,
     buffer: Vec<u8>,
 }
 
@@ -390,7 +390,7 @@ fn create_bitmap_atlas(
     let glyph_metadata = create_bitmap_metadata(&glyph_tab, spec);
     let atlas_buffer = create_bitmap_buffer(&glyph_tab, spec);
 
-    let metadata = BitmapAtlasMetadata {
+    let metadata = BitmapFontAtlasMetadata {
         dimensions: spec.dimensions,
         columns: spec.columns,
         rows: spec.columns,
