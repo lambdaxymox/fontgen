@@ -3,6 +3,9 @@ use std::fs::File;
 use std::io;
 use std::path::Path;
 
+use stb_image;
+use stb_image::image::LoadResult;
+
 
 ///
 /// A `GlyphMetadata` struct stores the parameters necessary to represent
@@ -92,4 +95,58 @@ pub fn write_font_atlas<P: AsRef<Path>>(atlas: &BitmapFontAtlas, path: P) -> io:
     write_atlas_buffer(atlas, &path)?;
 
     Ok(())
+}
+
+
+#[derive(Debug, Clone)]
+pub enum Error {
+    FileNotFound(String),
+    CouldNotParseFontFile(String),
+    Float32NotByteVector(String),
+}
+
+///
+/// Load a BitmapFontAtlas image from a file.
+///
+pub fn load_font_atlas<P: AsRef<Path>>(path: P) -> Result<Vec<u8>, Error> {
+    let force_channels = 4;
+    let mut image_data = match stb_image::image::load_with_depth(&path, force_channels, false) {
+        LoadResult::ImageU8(image_data) => image_data,
+        LoadResult::Error(_) => {
+            let disp = path.as_ref().display();
+            return Err(Error::CouldNotParseFontFile(format!("{}", disp)));
+        }
+        LoadResult::ImageF32(_) => {
+            let disp = path.as_ref().display();
+            return Err(
+                Error::Float32NotByteVector(format!("{}", disp))
+            );
+        }
+    };
+
+    Ok(image_data.data)
+}
+
+///
+/// Load a BitmapFontAtlas image from a file.
+///
+pub fn load_font_metadata<P: AsRef<Path>>(path: P) -> Result<BitmapFontAtlasMetadata, Error> {
+    let mut file = match File::open(&path) {
+        Ok(val) => val,
+        Err(_) => {
+            return Err(
+                Error::FileNotFound(format!("{}", path.as_ref().display()))
+            );
+        }
+    };
+    let metadata = match serde_json::from_reader(file) {
+        Ok(val) => val,
+        Err(_) => {
+            return Err(
+                Error::CouldNotParseFontFile(format!("{}", path.as_ref().display()))
+            );
+        }
+    };
+
+    Ok(metadata)
 }
