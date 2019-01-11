@@ -8,6 +8,11 @@ extern crate serde_json;
 extern crate serde_derive;
 
 
+mod bitmap_font_atlas;
+
+
+use crate::bitmap_font_atlas as bmfa;
+use crate::bitmap_font_atlas::{BitmapFontAtlas, BitmapFontAtlasMetadata, GlyphMetadata};
 use freetype::Library;
 use std::collections::HashMap;
 use std::error;
@@ -69,62 +74,6 @@ impl GlyphImage {
             data: data,
         }
     }
-}
-
-///
-/// A `GlyphMetadata` struct stores the parameters necessary to represent
-/// the glyph in a bitmap font atlas.
-///
-#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-struct GlyphMetadata {
-    /// The unicode code point.
-    code_point: usize,
-    ///
-    x_min: f32,
-    /// The width of the glyph, stored in [0,1].
-    width: f32,
-    /// The height of the glyph, represented in the interval [0,1].
-    height: f32,
-    /// The maximum depth of the glyph that falls below the baseline for the font.
-    y_min: f32,
-    y_offset: f32,
-}
-
-impl GlyphMetadata {
-    fn new(
-        code_point: usize,
-        width: f32, height: f32,
-        x_min: f32, y_min: f32, y_offset: f32) -> GlyphMetadata {
-
-        GlyphMetadata {
-            code_point: code_point,
-            width: width,
-            height: height,
-            x_min: x_min,
-            y_min: y_min,
-            y_offset: y_offset,
-        }
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-struct BitmapFontAtlasMetadata {
-    dimensions: usize,
-    columns: usize,
-    rows: usize,
-    padding: usize,
-    slot_glyph_size: usize,
-    glyph_size: usize,
-    glyph_metadata: HashMap<usize, GlyphMetadata>,
-}
-
-///
-/// A `BitmapFontAtlas` is a bitmapped font sheet. It contains the glyph parameters necessary to
-/// index into the bitmap image as well as the bitmap image.
-///
-struct BitmapFontAtlas {
-    metadata: BitmapFontAtlasMetadata,
-    buffer: Vec<u8>,
 }
 
 ///
@@ -407,30 +356,6 @@ fn create_bitmap_atlas(
 }
 
 ///
-/// Write the metadata file that accompanies the atlas image to a file.
-///
-fn write_metadata<P: AsRef<Path>>(atlas: &BitmapFontAtlas, path: P) -> io::Result<()> {
-    let mut file = match File::create(path) {
-        Ok(val) => val,
-        Err(e) => return Err(e),
-    };
-
-    serde_json::to_writer_pretty(file, &atlas.metadata)?;
-
-    Ok(())
-}
-
-///
-/// Write the atlas bitmap image to a file.
-///
-fn write_atlas_buffer<P: AsRef<Path>>(atlas: &BitmapFontAtlas, path: P) -> io::Result<()> {
-    image::save_buffer(
-        path, &atlas.buffer,
-        atlas.metadata.dimensions as u32, atlas.metadata.dimensions as u32, image::RGBA(8)
-    )
-}
-
-///
 /// The shell input options for `fontgen`.
 ///
 #[derive(Debug, StructOpt)]
@@ -521,13 +446,13 @@ fn run_app(opt: &Opt) -> Result<(), String> {
         }
     };
 
-    if write_metadata(&atlas, &atlas_meta_file).is_err() {
+    if bmfa::write_metadata(&atlas, &atlas_meta_file).is_err() {
         return Err(format!(
             "Could not create atlas metadata file: {}.", atlas_meta_file.display()
         ));
     }
 
-    if write_atlas_buffer(&atlas, &atlas_image_file).is_err() {
+    if bmfa::write_atlas_buffer(&atlas, &atlas_image_file).is_err() {
         return Err(format!(
             "Could not create atlas font sheet file: {}.", atlas_image_file.display()
         ));
