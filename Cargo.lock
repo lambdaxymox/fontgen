@@ -194,7 +194,7 @@ dependencies = [
 
 [[package]]
 name = "fontgen"
-version = "0.5.0"
+version = "0.5.1"
 dependencies = [
  "assert_cmd 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "bmfa 0.2.1 (git+https://github.com/stallmanifold/bmfa)",
