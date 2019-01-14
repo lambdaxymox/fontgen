@@ -3,7 +3,7 @@ name = "fontgen"
 version = "0.4.0"
 authors = ["Stallmanifold <stallmanifold@gmail.com>"]
 edition = "2018"
-description = "A shell utility for converting a vector (i.e. ttf or otf) to a bitmapped font sheet."
+description = "A shell utility for converting a vector (i.e. ttf or otf) to a bitmapped font atlas."
 keywords = ["games", "game development", "fonts", "graphics"]
 
 [dependencies]
@@ -13,7 +13,8 @@ stb_image = "0.2.2"
 structopt = "0.2"
 serde = "1.0.84"
 serde_derive = "1.0.84"
-serde_json = "1.0.34"
+serde_json = "1.0.35"
+bmfa = { git = "https://github.com/stallmanifold/bmfa" }
 
 [dev-dependencies]
 assert_cmd = "0.10"

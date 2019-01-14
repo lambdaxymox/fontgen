@@ -1,3 +1,4 @@
+extern crate bmfa;
 extern crate freetype;
 extern crate image;
 extern crate structopt;
@@ -8,11 +9,7 @@ extern crate serde_json;
 extern crate serde_derive;
 
 
-mod bitmap_font_atlas;
-
-
-use crate::bitmap_font_atlas as bmfa;
-use crate::bitmap_font_atlas::{BitmapFontAtlas, BitmapFontAtlasMetadata, GlyphMetadata};
+use bmfa::{BitmapFontAtlas, BitmapFontAtlasMetadata, GlyphMetadata};
 use freetype::Library;
 use std::collections::HashMap;
 use std::error;
@@ -337,7 +334,7 @@ fn create_bitmap_atlas(
         Err(e) => return Err(e),
     };
     let glyph_metadata = create_bitmap_metadata(&glyph_tab, spec);
-    let atlas_buffer = create_bitmap_buffer(&glyph_tab, spec);
+    let atlas_image = create_bitmap_buffer(&glyph_tab, spec);
 
     let metadata = BitmapFontAtlasMetadata {
         dimensions: spec.dimensions,
@@ -349,10 +346,7 @@ fn create_bitmap_atlas(
         glyph_metadata: glyph_metadata,
     };
 
-    Ok(BitmapFontAtlas {
-        metadata: metadata,
-        buffer: atlas_buffer,
-    })
+    Ok(BitmapFontAtlas::new(metadata, atlas_image))
 }
 
 ///
@@ -431,10 +425,8 @@ fn run_app(opt: &Opt) -> Result<(), String> {
     let atlas_dimensions_px = slot_glyph_size * atlas_columns;
     let padding_px = opt.padding;
     let atlas_glyph_px = slot_glyph_size - padding_px;
-    let mut atlas_meta_file = opt.output_path.clone();
-    atlas_meta_file.set_extension("meta");
-    let mut atlas_image_file = opt.output_path.clone();
-    atlas_image_file.set_extension("png");
+    let mut atlas_file = opt.output_path.clone();
+    atlas_file.set_extension("bmfa");
 
     let atlas_spec = AtlasSpec::new(
         atlas_dimensions_px, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
@@ -446,15 +438,9 @@ fn run_app(opt: &Opt) -> Result<(), String> {
         }
     };
 
-    if bmfa::write_metadata(&atlas, &atlas_meta_file).is_err() {
+    if bmfa::write_to_file(&atlas_file, &atlas).is_err() {
         return Err(format!(
-            "Could not create atlas metadata file: {}.", atlas_meta_file.display()
-        ));
-    }
-
-    if bmfa::write_atlas_buffer(&atlas, &atlas_image_file).is_err() {
-        return Err(format!(
-            "Could not create atlas font sheet file: {}.", atlas_image_file.display()
+            "Could not create atlas file: {}.", atlas_file.display()
         ));
     }
 
