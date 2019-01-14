@@ -49,3 +49,22 @@ fn generate_a_font_sheet_that_does_not_exist() -> Result<(), Box<std::error::Err
 
     Ok(())
 }
+
+///
+/// The application should reject any padding that's larger than the slot glyph size.
+///
+#[test]
+fn fontgen_should_reject_padding_larger_than_slot_glyph_size() -> Result<(), Box<std::error::Error>> {
+    let mut cmd = Command::main_binary()?;
+    cmd.arg("--input")
+        .arg("assets/FreeMono.ttf")
+        .arg("--output")
+        .arg("FreeMono.bmfa")
+        .arg("--padding")
+        .arg("129")
+        .arg("--slot-glyph-size")
+        .arg("128");
+    cmd.assert().failure();
+
+    Ok(())
+}
