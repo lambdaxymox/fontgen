@@ -246,15 +246,15 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
 ///
 /// Pack the glyph bitmap images sampled from the typeface into a single bitmap image.
 ///
-fn create_bitmap_buffer(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
-    // Next we can open a file stream to write our atlas image to
+fn create_bitmap_image(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
+    // Next we can open a file stream to write our atlas image to.
     let mut atlas_buffer = vec![
         0 as u8; spec.dimensions * spec.dimensions * 4 * mem::size_of::<u8>()
     ];
     let mut atlas_buffer_index = 0;
     for y in 0..spec.dimensions {
         for x in 0..spec.dimensions {
-            // work out which grid slot (col, row) we are in i.e. out of 16 glyphs x 16 glyphs.
+            // Work out which grid slot (col, row) we are in i.e. out of 16 glyphs x 16 glyphs.
             let col = x / spec.slot_glyph_size;
             let row = y / spec.slot_glyph_size;
             let order = row * spec.columns + col;
@@ -326,7 +326,7 @@ fn create_bitmap_atlas(
         Err(e) => return Err(e),
     };
     let glyph_metadata = create_bitmap_metadata(&glyph_tab, spec);
-    let atlas_image = create_bitmap_buffer(&glyph_tab, spec);
+    let atlas_image = create_bitmap_image(&glyph_tab, spec);
 
     let metadata = BitmapFontAtlasMetadata {
         dimensions: spec.dimensions,
