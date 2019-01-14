@@ -22,14 +22,11 @@ fn generate_a_font_sheet_from_a_ttf_file() -> Result<(), Box<std::error::Error>>
         .arg("128");
     cmd.assert().success();
 
-    let file_path = Path::new("FontMono.png");
-    let meta_path = Path::new("FontMono.meta");
+    let path = Path::new("FontMono.bmfa");
 
-    assert!(file_path.exists());
-    assert!(meta_path.exists());
+    assert!(path.exists());
 
-    fs::remove_file(file_path)?;
-    fs::remove_file(meta_path)?;
+    fs::remove_file(path)?;
 
     Ok(())
 }
