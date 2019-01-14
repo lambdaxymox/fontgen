@@ -2,11 +2,6 @@ extern crate bmfa;
 extern crate freetype;
 extern crate image;
 extern crate structopt;
-extern crate serde;
-extern crate serde_json;
-
-#[macro_use]
-extern crate serde_derive;
 
 
 use bmfa::{BitmapFontAtlas, BitmapFontAtlasMetadata, GlyphMetadata};
@@ -14,11 +9,8 @@ use freetype::Library;
 use std::collections::HashMap;
 use std::error;
 use std::fmt;
-use std::fs::File;
-use std::io;
-use std::io::Write;
 use std::mem;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process;
 use structopt::StructOpt;
 
