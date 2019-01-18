@@ -22,6 +22,8 @@ use structopt::StructOpt;
 ///
 #[derive(Copy, Clone)]
 struct AtlasSpec {
+    /// The origin and coordinate chart for the atlas image.
+    origin: bmfa::Origin,
     /// The size of the atlas, in pixels.
     dimensions: usize,
     /// The number of glyphs per row in the atlas.
@@ -36,10 +38,11 @@ struct AtlasSpec {
 
 impl AtlasSpec {
     fn new(
-        dimensions: usize, columns: usize,
+        origin: bmfa::Origin, dimensions: usize, columns: usize,
         padding: usize, slot_glyph_size: usize, glyph_size: usize) -> AtlasSpec {
 
         AtlasSpec {
+            origin: origin,
             dimensions: dimensions,
             columns: columns,
             padding: padding,
@@ -246,7 +249,7 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
 ///
 /// Pack the glyph bitmap images sampled from the typeface into a single bitmap image.
 ///
-fn create_bitmap_image(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
+fn create_bitmap_image(glyph_tab: &GlyphTable, spec: AtlasSpec) -> bmfa::BitmapFontAtlasImage {
     // Next we can open a file stream to write our atlas image to.
     let mut atlas_buffer = vec![
         0 as u8; spec.dimensions * spec.dimensions * 4 * mem::size_of::<u8>()
@@ -312,7 +315,9 @@ fn create_bitmap_image(glyph_tab: &GlyphTable, spec: AtlasSpec) -> Vec<u8> {
         }
     }
 
-    atlas_buffer
+    bmfa::BitmapFontAtlasImage::new(
+        atlas_buffer, spec.dimensions, spec.dimensions, spec.origin
+    )
 }
 
 ///
@@ -329,6 +334,7 @@ fn create_bitmap_atlas(
     let atlas_image = create_bitmap_image(&glyph_tab, spec);
 
     let metadata = BitmapFontAtlasMetadata {
+        origin: spec.origin,
         dimensions: spec.dimensions,
         columns: spec.columns,
         rows: spec.columns,
@@ -339,6 +345,54 @@ fn create_bitmap_atlas(
     };
 
     Ok(BitmapFontAtlas::new(metadata, atlas_image))
+}
+
+#[derive(Clone, Debug)]
+enum OptError {
+    InputFileDoesNotExist(PathBuf),
+    InputFileIsNotAFile(PathBuf),
+    OutputFileExists(PathBuf),
+    SlotGlyphSizeCannotBeZero(usize),
+    PaddingLargerThanSlotGlyphSize(usize, usize),
+    InvalidOrigin(String),
+}
+
+impl fmt::Display for OptError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            OptError::InputFileDoesNotExist(ref path) => {
+                write!(f, "The font file {} could not be found.", path.display())
+            }
+            OptError::InputFileIsNotAFile(ref path) => {
+                write!(f, "The path {} is not a file.", path.display())
+            }
+            OptError::OutputFileExists(ref path) => {
+                write!(f, "A file already exists in the location {}", path.display())
+            }
+            OptError::SlotGlyphSizeCannotBeZero(_) => {
+                write!(f, "The slot glyph size cannot be zero.")
+            }
+            OptError::PaddingLargerThanSlotGlyphSize(padding, glyph_size) => {
+                write!(
+                    f,
+                    "The padding ({} pixels) for each glyph is \
+                    larger than the glyph slot size ({} pixels).",
+                    padding, glyph_size
+                )
+            }
+            OptError::InvalidOrigin(ref origin) => {
+                write!(f, "Selection for image origin invalid. Got {}", origin)
+            }
+        }
+    }
+}
+
+fn parse_origin(st: &str) -> Result<bmfa::Origin, OptError> {
+    match st {
+        "bottom-left" => Ok(bmfa::Origin::BottomLeft),
+        "top-left" => Ok(bmfa::Origin::TopLeft),
+        _ => Err(OptError::InvalidOrigin(format!("{}", st))),
+    }
 }
 
 ///
@@ -358,23 +412,19 @@ struct Opt {
     #[structopt(short = "o", long = "output")]
     /// The path to the output file.
     output_path: PathBuf,
-    #[structopt(long = "slot-glyph-size", default_value = "64")]
     /// The size, in pixels, of a glyph slot in the font sheet. The slot glyph
     /// is not necessarily the same as the glyph size because a glyph slot can contain padding.
+    #[structopt(long = "slot-glyph-size", default_value = "64")]
     slot_glyph_size: usize,
-    #[structopt(short = "p", long = "padding", default_value = "0")]
     /// The glyph slot padding size, in pixels. This is the number of pixels away from the
     /// boundary of a glyph slot a glyph will be placed.
+    #[structopt(short = "p", long = "padding", default_value = "0")]
     padding: usize,
-}
-
-#[derive(Clone, Debug)]
-enum OptError {
-    InputFileDoesNotExist(PathBuf),
-    InputFileIsNotAFile(PathBuf),
-    OutputFileExists(PathBuf),
-    SlotGlyphSizeCannotBeZero(usize),
-    PaddingLargerThanSlotGlyphSize(usize, usize),
+    /// The origin of the coordinate system for the atlas image. This describes the coordinate system
+    /// used to index into the image for each glyph.
+    #[structopt(long = "origin", default_value = "bottom-left")]
+    #[structopt(parse(try_from_str = "parse_origin"))]
+    origin: bmfa::Origin,
 }
 
 ///
@@ -412,6 +462,7 @@ fn run_app(opt: &Opt) -> Result<(), String> {
         }
     };
 
+    let origin = opt.origin;
     let slot_glyph_size = opt.slot_glyph_size;
     let atlas_columns = 16;
     let atlas_dimensions_px = slot_glyph_size * atlas_columns;
@@ -421,7 +472,7 @@ fn run_app(opt: &Opt) -> Result<(), String> {
     atlas_file.set_extension("bmfa");
 
     let atlas_spec = AtlasSpec::new(
-        atlas_dimensions_px, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
+        origin, atlas_dimensions_px, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
     );
     let atlas = match create_bitmap_atlas(face, atlas_spec) {
         Ok(val) => val,

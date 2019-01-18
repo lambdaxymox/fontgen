@@ -7,7 +7,7 @@ description = "A shell utility for converting a vector (i.e. ttf or otf) to a bi
 keywords = ["games", "game development", "fonts", "graphics"]
 
 [dependencies]
-freetype-rs = "0.19.0"
+freetype-rs = "0.19.1"
 image = "0.20.1"
 structopt = "0.2"
 bmfa = { git = "https://github.com/stallmanifold/bmfa" }
