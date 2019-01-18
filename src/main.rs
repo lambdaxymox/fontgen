@@ -315,6 +315,21 @@ fn create_bitmap_image(glyph_tab: &GlyphTable, spec: AtlasSpec) -> bmfa::BitmapF
         }
     }
 
+    if spec.origin == bmfa::Origin::BottomLeft {
+        // If the origin is the bottom left of the image, we need to flip the image back over
+        // before writing it out.
+        let height = spec.dimensions;
+        let width_in_bytes = 4 * spec.dimensions;
+        let half_height = height / 2;
+        for row in 0..half_height {
+            for col in 0..width_in_bytes {
+                let temp = atlas_buffer[row * width_in_bytes + col];
+                atlas_buffer[row * width_in_bytes + col] = atlas_buffer[((height - row - 1) * width_in_bytes) + col];
+                atlas_buffer[((height - row - 1) * width_in_bytes) + col] = temp;
+            }
+        }
+    }
+
     bmfa::BitmapFontAtlasImage::new(
         atlas_buffer, spec.dimensions, spec.dimensions, spec.origin
     )
