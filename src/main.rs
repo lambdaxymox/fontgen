@@ -26,6 +26,8 @@ struct AtlasSpec {
     origin: bmfa::Origin,
     /// The size of the atlas, in pixels.
     dimensions: usize,
+    /// The number of glyphs per column in the atlas.
+    rows: usize,
     /// The number of glyphs per row in the atlas.
     columns: usize,
     /// The amount of padding available for outlines in the glyph, in pixels.
@@ -38,12 +40,13 @@ struct AtlasSpec {
 
 impl AtlasSpec {
     fn new(
-        origin: bmfa::Origin, dimensions: usize, columns: usize,
+        origin: bmfa::Origin, dimensions: usize, rows: usize, columns: usize,
         padding: usize, slot_glyph_size: usize, glyph_size: usize) -> AtlasSpec {
 
         AtlasSpec {
             origin: origin,
             dimensions: dimensions,
+            rows: rows,
             columns: columns,
             padding: padding,
             slot_glyph_size: slot_glyph_size,
@@ -239,7 +242,9 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
         let height = (glyph_tab.rows[*i] + spec.padding as i32) as f32 / spec.slot_glyph_size as f32;
         let y_offset = -(spec.padding as f32 - glyph_tab.y_min[*i] as f32) / spec.slot_glyph_size as f32;
 
-        let glyph_metadata_i = GlyphMetadata::new(*i, row, col, width, height, x_min, y_min, y_offset);
+        let row = order / spec.rows;
+        let column = order % spec.columns;
+        let glyph_metadata_i = GlyphMetadata::new(*i, row, column, width, height, x_min, y_min, y_offset);
         metadata.insert(*i, glyph_metadata_i);
     }
 
@@ -480,6 +485,7 @@ fn run_app(opt: &Opt) -> Result<(), String> {
     let origin = opt.origin;
     let slot_glyph_size = opt.slot_glyph_size;
     let atlas_columns = 16;
+    let atlas_rows = 16;
     let atlas_dimensions_px = slot_glyph_size * atlas_columns;
     let padding_px = opt.padding;
     let atlas_glyph_px = slot_glyph_size - padding_px;
@@ -487,7 +493,7 @@ fn run_app(opt: &Opt) -> Result<(), String> {
     atlas_file.set_extension("bmfa");
 
     let atlas_spec = AtlasSpec::new(
-        origin, atlas_dimensions_px, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
+        origin, atlas_dimensions_px, atlas_rows, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
     );
     let atlas = match create_bitmap_atlas(face, atlas_spec) {
         Ok(val) => val,
