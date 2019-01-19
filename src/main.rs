@@ -24,8 +24,10 @@ use structopt::StructOpt;
 struct AtlasSpec {
     /// The origin and coordinate chart for the atlas image.
     origin: bmfa::Origin,
-    /// The size of the atlas, in pixels.
-    dimensions: usize,
+    /// The width of the atlas, in pixels.
+    width: usize,
+    /// The height of the atls, in pixels.
+    height: usize,
     /// The number of glyphs per column in the atlas.
     rows: usize,
     /// The number of glyphs per row in the atlas.
@@ -40,12 +42,14 @@ struct AtlasSpec {
 
 impl AtlasSpec {
     fn new(
-        origin: bmfa::Origin, dimensions: usize, rows: usize, columns: usize,
+        origin: bmfa::Origin,
+        width: usize, height: usize, rows: usize, columns: usize,
         padding: usize, slot_glyph_size: usize, glyph_size: usize) -> AtlasSpec {
 
         AtlasSpec {
             origin: origin,
-            dimensions: dimensions,
+            width: width,
+            height: height,
             rows: rows,
             columns: columns,
             padding: padding,
@@ -236,8 +240,8 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
         let row = order % spec.columns;
 
         // Glyph metadata parameters.
-        let x_min = (col * spec.slot_glyph_size) as f32 / spec.dimensions as f32;
-        let y_min = (row * spec.slot_glyph_size) as f32 / spec.dimensions as f32;
+        let x_min = (col * spec.slot_glyph_size) as f32 / spec.width as f32;
+        let y_min = (row * spec.slot_glyph_size) as f32 / spec.height as f32;
         let width = (glyph_tab.width[*i] + spec.padding as i32) as f32 / spec.slot_glyph_size as f32;
         let height = (glyph_tab.rows[*i] + spec.padding as i32) as f32 / spec.slot_glyph_size as f32;
         let y_offset = -(spec.padding as f32 - glyph_tab.y_min[*i] as f32) / spec.slot_glyph_size as f32;
@@ -257,11 +261,11 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
 fn create_bitmap_image(glyph_tab: &GlyphTable, spec: AtlasSpec) -> bmfa::BitmapFontAtlasImage {
     // Next we can open a file stream to write our atlas image to.
     let mut atlas_buffer = vec![
-        0 as u8; spec.dimensions * spec.dimensions * 4 * mem::size_of::<u8>()
+        0 as u8; spec.width * spec.height * 4 * mem::size_of::<u8>()
     ];
     let mut atlas_buffer_index = 0;
-    for y in 0..spec.dimensions {
-        for x in 0..spec.dimensions {
+    for y in 0..spec.height {
+        for x in 0..spec.width {
             // Work out which grid slot (col, row) we are in i.e. out of 16 glyphs x 16 glyphs.
             let col = x / spec.slot_glyph_size;
             let row = y / spec.slot_glyph_size;
@@ -323,8 +327,8 @@ fn create_bitmap_image(glyph_tab: &GlyphTable, spec: AtlasSpec) -> bmfa::BitmapF
     if spec.origin == bmfa::Origin::BottomLeft {
         // If the origin is the bottom left of the image, we need to flip the image back over
         // before writing it out.
-        let height = spec.dimensions;
-        let width_in_bytes = 4 * spec.dimensions;
+        let height = spec.height;
+        let width_in_bytes = 4 * spec.width;
         let half_height = height / 2;
         for row in 0..half_height {
             for col in 0..width_in_bytes {
@@ -336,7 +340,7 @@ fn create_bitmap_image(glyph_tab: &GlyphTable, spec: AtlasSpec) -> bmfa::BitmapF
     }
 
     bmfa::BitmapFontAtlasImage::new(
-        atlas_buffer, spec.dimensions, spec.dimensions, spec.origin
+        atlas_buffer, spec.width, spec.height, spec.origin
     )
 }
 
@@ -355,7 +359,8 @@ fn create_bitmap_atlas(
 
     let metadata = BitmapFontAtlasMetadata {
         origin: spec.origin,
-        dimensions: spec.dimensions,
+        width: spec.width,
+        height: spec.height,
         columns: spec.columns,
         rows: spec.columns,
         padding: spec.padding,
@@ -486,14 +491,16 @@ fn run_app(opt: &Opt) -> Result<(), String> {
     let slot_glyph_size = opt.slot_glyph_size;
     let atlas_columns = 16;
     let atlas_rows = 16;
-    let atlas_dimensions_px = slot_glyph_size * atlas_columns;
+    let atlas_height_px = slot_glyph_size * atlas_rows;
+    let atlas_width_px = slot_glyph_size * atlas_columns;
     let padding_px = opt.padding;
     let atlas_glyph_px = slot_glyph_size - padding_px;
     let mut atlas_file = opt.output_path.clone();
     atlas_file.set_extension("bmfa");
 
     let atlas_spec = AtlasSpec::new(
-        origin, atlas_dimensions_px, atlas_rows, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
+        origin, atlas_width_px, atlas_height_px,
+        atlas_rows, atlas_columns, padding_px, slot_glyph_size, atlas_glyph_px
     );
     let atlas = match create_bitmap_atlas(face, atlas_spec) {
         Ok(val) => val,
