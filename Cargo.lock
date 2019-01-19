@@ -56,7 +56,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 [[package]]
 name = "bmfa"
 version = "0.2.1"
-source = "git+https://github.com/stallmanifold/bmfa#e8dcb53c993036cf262b52dc50b806dbaa43a463"
+source = "git+https://github.com/stallmanifold/bmfa#da4e5390f4d7e764b4897c518c0767d5e23e3484"
 dependencies = [
  "image 0.21.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde 1.0.84 (registry+https://github.com/rust-lang/crates.io-index)",
