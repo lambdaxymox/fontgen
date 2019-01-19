@@ -225,7 +225,7 @@ fn sample_typeface(
 ///
 fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<usize, GlyphMetadata> {
     let mut metadata = HashMap::new();
-    let glyph_metadata_space = GlyphMetadata::new(32, 0.0, 0.5, 0.0, 1.0, 0.0);
+    let glyph_metadata_space = GlyphMetadata::new(32, 0.0, 0.5, 1.0, 0.0, 0.0);
     metadata.insert(32, glyph_metadata_space);
     for i in glyph_tab.buffer.keys() {
         let order = i - 32;
