@@ -1,15 +1,15 @@
 [package]
 name = "fontgen"
-version = "0.5.2"
+version = "0.5.3"
 authors = ["Stallmanifold <stallmanifold@gmail.com>"]
 edition = "2018"
 description = "A shell utility for converting a vector (i.e. ttf or otf) to a bitmapped font atlas."
 keywords = ["games", "game development", "fonts", "graphics"]
 
 [dependencies]
-freetype-rs = "0.19.1"
-image = "0.20.1"
-structopt = "0.2"
+freetype-rs = "0.20.0"
+image = "0.21.2"
+structopt = "0.2.18"
 bmfa = { git = "https://github.com/stallmanifold/bmfa" }
 
 [dev-dependencies]
