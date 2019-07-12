@@ -11,7 +11,6 @@ use std::error;
 use std::fmt;
 use std::mem;
 use std::path::PathBuf;
-use std::process;
 use structopt::StructOpt;
 
 
@@ -412,6 +411,8 @@ impl fmt::Display for OptError {
     }
 }
 
+impl error::Error for OptError {}
+
 fn parse_origin(st: &str) -> Result<bmfa::Origin, OptError> {
     match st {
         "bottom-left" => Ok(bmfa::Origin::BottomLeft),
@@ -475,15 +476,40 @@ fn verify_opt(opt: &Opt) -> Result<(), OptError> {
     Ok(())
 }
 
+#[derive(Debug)]
+enum AppError {
+    CouldNotOpenFontFile(PathBuf),
+    CouldNotCreateBitmapFont(Box<dyn std::error::Error>),
+    CouldNotCreateAtlasFile(PathBuf),
+}
+
+impl fmt::Display for AppError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            AppError::CouldNotOpenFontFile(input_path) => {
+                write!(f, "Could not open font file: {}.", input_path.display())
+            }
+            AppError::CouldNotCreateBitmapFont(e) => {
+                write!(f, "Could not create bitmap font. Got error: {}", e)
+            }
+            AppError::CouldNotCreateAtlasFile(atlas_file) => {
+                write!(f, "Could not create atlas file: {}.", atlas_file.display())
+            }
+        }
+    }
+}
+
+impl error::Error for AppError {}
+
 ///
 /// Run the application.
 ///
-fn run_app(opt: &Opt) -> Result<(), String> {
+fn run_app(opt: &Opt) -> Result<(), Box<dyn std::error::Error>> {
     let ft = Library::init().expect("Failed to initialize FreeType library.");
     let face = match ft.new_face(&opt.input_path, 0) {
         Ok(val) => val,
         Err(_) => {
-            return Err(format!("Could not open font file: {}.", &opt.input_path.display()));
+            return Err(Box::new(AppError::CouldNotOpenFontFile(opt.input_path.clone())));
         }
     };
 
@@ -505,36 +531,19 @@ fn run_app(opt: &Opt) -> Result<(), String> {
     let atlas = match create_bitmap_atlas(face, atlas_spec) {
         Ok(val) => val,
         Err(e) => {
-            return Err(format!("Could create bitmap font. Got error: {}", e));
+            return Err(Box::new(AppError::CouldNotCreateBitmapFont(Box::new(e))));
         }
     };
 
     if bmfa::write_to_file(&atlas_file, &atlas).is_err() {
-        return Err(format!(
-            "Could not create atlas file: {}.", atlas_file.display()
-        ));
+        return Err(Box::new(AppError::CouldNotCreateAtlasFile(atlas_file)));
     }
 
     Ok(())
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let opt = Opt::from_args();
-    match verify_opt(&opt) {
-        Err(e) => {
-            eprintln!("Error: {:?}", e);
-            process::exit(1);
-        }
-        Ok(_) => {}
-    }
-
-    process::exit(match run_app(&opt) {
-        Ok(_) => {
-            0
-        },
-        Err(e) => {
-            eprintln!("{:?}", e);
-            1
-        }
-    });
+    verify_opt(&opt)?;
+    run_app(&opt)
 }
