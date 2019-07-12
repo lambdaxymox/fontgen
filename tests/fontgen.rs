@@ -11,7 +11,7 @@ use std::path::Path;
 ///
 #[test]
 fn generate_a_font_sheet_from_a_ttf_file() -> Result<(), Box<std::error::Error>> {
-    let mut cmd = Command::main_binary()?;
+    let mut cmd = Command::cargo_bin("fontgen")?;
     cmd.arg("--input")
         .arg("assets/FreeMono.ttf")
         .arg("--output")
@@ -36,7 +36,7 @@ fn generate_a_font_sheet_from_a_ttf_file() -> Result<(), Box<std::error::Error>>
 ///
 #[test]
 fn generate_a_font_sheet_that_does_not_exist() -> Result<(), Box<std::error::Error>> {
-    let mut cmd = Command::main_binary()?;
+    let mut cmd = Command::cargo_bin("fontgen")?;
     cmd.arg("--input")
         .arg("assets/DoesNotExist.ttf")
         .arg("--output")
@@ -55,7 +55,7 @@ fn generate_a_font_sheet_that_does_not_exist() -> Result<(), Box<std::error::Err
 ///
 #[test]
 fn fontgen_should_reject_padding_larger_than_slot_glyph_size() -> Result<(), Box<std::error::Error>> {
-    let mut cmd = Command::main_binary()?;
+    let mut cmd = Command::cargo_bin("fontgen")?;
     cmd.arg("--input")
         .arg("assets/FreeMono.ttf")
         .arg("--output")

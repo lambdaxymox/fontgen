@@ -13,5 +13,5 @@ structopt = "0.2"
 bmfa = { git = "https://github.com/stallmanifold/bmfa" }
 
 [dev-dependencies]
-assert_cmd = "0.10"
+assert_cmd = "0.11.1"
 predicates = "1"
