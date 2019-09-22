@@ -14,18 +14,16 @@ use std::path::PathBuf;
 use structopt::StructOpt;
 
 
-///
 /// The atlas specification is a description of the dimensions of the atlas
 /// and the dimensions of each glyph in the atlas. This comes in as input at
 /// runtime.
-///
 #[derive(Copy, Clone)]
 struct AtlasSpec {
     /// The origin and coordinate chart for the atlas image.
     origin: bmfa::Origin,
-    /// The width of the atlas, in pixels.
+    /// The width of the atlas in pixels.
     width: usize,
-    /// The height of the atls, in pixels.
+    /// The height of the atls in pixels.
     height: usize,
     /// The number of glyphs per column in the atlas.
     rows: usize,
@@ -33,7 +31,7 @@ struct AtlasSpec {
     columns: usize,
     /// The amount of padding available for outlines in the glyph, in pixels.
     padding: usize,
-    /// The maximum size of a glyph slot, in pixels.
+    /// The maximum size of a glyph slot in pixels.
     slot_glyph_size: usize,
     /// The size of a glyph inside the slot, leaving room for padding for outlines.
     glyph_size: usize,
@@ -58,9 +56,7 @@ impl AtlasSpec {
     }
 }
 
-///
 /// A `GlyphImage` is a bitmapped representation of a single font glyph.
-///
 #[derive(Clone)]
 struct GlyphImage {
     data: Vec<u8>,
@@ -74,14 +70,12 @@ impl GlyphImage {
     }
 }
 
-///
 /// A `GlyphTable` is an intermediate date structure storing all the typeface parameters
 /// for each glyph to be used in the construction of the final bitmap atlas.
-///
 struct GlyphTable {
-    /// the height of a glyph in pixels.
+    /// The height of a glyph in pixels.
     rows: Vec<i32>,
-    /// the width of a row in a glyph in pixels.
+    /// The width of a row in a glyph in pixels.
     width: Vec<i32>,
     /// The number of bytes per row in a glyph.
     pitch: Vec<i32>,
@@ -91,12 +85,10 @@ struct GlyphTable {
     buffer: HashMap<usize, GlyphImage>,
 }
 
-///
 /// Sample a single bitmap image for a single glyph from a font. The FreeType library interns
 /// each sampled glyph image one at a time internally. Each time the library samples a new glyph,
 /// the old glyph gets overwritten, so the data must be copied out before each subsequent
 /// sampling of a new glyph.
-///
 fn create_glyph_image(glyph: &freetype::glyph_slot::GlyphSlot) -> GlyphImage {
     let bitmap = glyph.bitmap();
     let rows = bitmap.rows() as usize;
@@ -159,10 +151,8 @@ impl error::Error for SampleTypefaceError {
     }
 }
 
-///
 /// Generate the glyph image for each individual glyph slot in the typeface to be
 /// mapped into the final atlas image.
-///
 fn sample_typeface(
     face: freetype::face::Face, spec: AtlasSpec) -> Result<GlyphTable, SampleTypefaceError> {
 
@@ -226,9 +216,7 @@ fn sample_typeface(
     })
 }
 
-///
 /// Calculate the metadata for indexing into the atlas bitmap image.
-///
 fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<usize, GlyphMetadata> {
     let mut metadata = HashMap::new();
     let glyph_metadata_space = GlyphMetadata::new(32, 0, 0, 0.5, 1.0, 0.0, 0.0, 0.0);
@@ -254,9 +242,7 @@ fn create_bitmap_metadata(glyph_tab: &GlyphTable, spec: AtlasSpec) -> HashMap<us
     metadata
 }
 
-///
 /// Pack the glyph bitmap images sampled from the typeface into a single bitmap image.
-///
 fn create_bitmap_image(glyph_tab: &GlyphTable, spec: AtlasSpec) -> bmfa::BitmapFontAtlasImage {
     // Next we can open a file stream to write our atlas image to.
     let mut atlas_buffer = vec![
@@ -343,9 +329,7 @@ fn create_bitmap_image(glyph_tab: &GlyphTable, spec: AtlasSpec) -> bmfa::BitmapF
     )
 }
 
-///
 /// Create a bitmapped atlas from a vector based font atlas.
-///
 fn create_bitmap_atlas(
     face: freetype::face::Face, spec: AtlasSpec) -> Result<BitmapFontAtlas, SampleTypefaceError> {
 
@@ -421,9 +405,7 @@ fn parse_origin(st: &str) -> Result<bmfa::Origin, OptError> {
     }
 }
 
-///
 /// The shell input options for `fontgen`.
-///
 #[derive(Debug, StructOpt)]
 #[structopt(
     name = "fontgen",
@@ -453,9 +435,7 @@ struct Opt {
     origin: bmfa::Origin,
 }
 
-///
 /// Verify the input options.
-///
 fn verify_opt(opt: &Opt) -> Result<(), OptError> {
     if !opt.input_path.exists() {
         return Err(OptError::InputFileDoesNotExist(opt.input_path.clone()));
@@ -501,9 +481,7 @@ impl fmt::Display for AppError {
 
 impl error::Error for AppError {}
 
-///
 /// Run the application.
-///
 fn run_app(opt: &Opt) -> Result<(), Box<dyn std::error::Error>> {
     let ft = Library::init().expect("Failed to initialize FreeType library.");
     let face = match ft.new_face(&opt.input_path, 0) {

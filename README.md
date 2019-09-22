@@ -1,8 +1,9 @@
 # Bitmapped Image Font Sheet Generator
 
 ## Introduction
-The program `fontgen` is a shell utility for converting a TrueType or OpenType file into a bitmapped font image. 
-The primary use case for for this program is for generating font sheets for use in game development.
+The program `fontgen` is a shell utility for converting a TrueType or OpenType file into a bitmapped atlas file. 
+See [https://github.com/lambdaxymox/bmfa](repo) for details. The primary use case for for this program is for 
+generating fonts for use in game development.
 
 ## Usage
 The primary input usage for `fontgen` has the form
@@ -23,4 +24,4 @@ cargo install
 to install the program.
 
 ## Dependencies
-
+The main dependency is the [https://github.com/lambdaxymox/bmfa](bmfa) file format for bitmapped font atlases. 
